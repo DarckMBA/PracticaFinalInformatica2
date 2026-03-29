@@ -1,0 +1,54 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Aplicación web para localizar cargadores de coche">
+    <meta name="author" content="Marc Baleiron, Leo Seguín, Juan Ignacio Gonzalez, Carlos, Abanades">
+    <title>Encuentra tu Cargador</title>
+
+    <link rel="stylesheet" href="../css/styles.css" />
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""
+    />
+</head>
+<body>
+    <div id="mapa"></div>
+
+    <!-- Buscador -->
+    <div id="buscador">
+        <form id="barraDeBusqueda">
+            <input tabindex="1" id="inputBusqueda" type="text" placeholder="Ciudad, calle, número..." required />
+            <button tabindex="2" id="botonBusqueda" title="Busqueda" type="submit">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="9" cy="9" r="8"></circle>
+                    <path d="m22 21-7.5-7.5"></path>
+                </svg>
+            </button>
+        </form>
+    </div>
+    <button class="btn btn-azul">Reservar</button>
+<button class="btn btn-verde">Crear usuario</button>
+<button class="btn btn-rojo">Dar de baja</button>
+<button class="btn btn-naranja">Reportar incidencia</button>
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+        crossorigin=""
+    ></script>
+
+    <script type="module" src="../js/main.js"></script>
+
+    <script src="../js/seguridad/middleware/auth.js"></script>
+    <script>
+    comprobarAcceso("admin");
+    </script>
+
+
+</body>
+</html>
