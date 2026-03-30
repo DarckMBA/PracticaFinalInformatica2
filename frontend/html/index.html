@@ -1,6 +1,43 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Aplicación web para localizar cargadores de coche">
+    <meta name="author" content="Marc Baleiron, Leo Seguín, Juan Ignacio Gonzalez, Carlos García, Alejandro Abanades">
+    <link rel="icon" type="image.jpg" href="../assets/ALFONSO-X.jpg">
+    <title>Encuentra tu Cargador</title>
+    <link rel="stylesheet" href="../UX_Y_FRONTEND/css/styles.css" />
+</head>
+<body>
+    <div class="login-container">
+        <h1>Iniciar Sesión</h1>
+
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="Email">Correo </label>
+                <input type="email" id="Email" name="email" placeholder="Introduce tu correo" required/>
+            </div>
+
+            <div class="form-group">
+                <label for="Contraseña">Contraseña </label>
+                <input type="password" id="Contraseña" name="password" placeholder="Introduce tu contraseña" required/>
+            </div>
+        
+                <button type="submit">Entrar</button>
+        </form>
+        <p id="mensaje"></p>
+    </div>
+
+    <script src="../UX_Y_FRONTEND/js/login.js"></script>    
+</body>
+</html>
+
+
+<!--
+<!DOCTYPE html>
+<html lang="es">
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Aplicación web para localizar cargadores de coche">
@@ -19,7 +56,7 @@
 <body>
     <div id="mapa"></div>
 
-    <!-- Buscador -->
+    Buscador
     <div id="buscador">
         <form id="barraDeBusqueda">
             <input tabindex="1" id="inputBusqueda" type="text" placeholder="Ciudad, calle, número..." required />
@@ -40,4 +77,4 @@
 
     <script type="module" src="../js/main.js"></script>
 </body>
-</html>
+</html>-->
