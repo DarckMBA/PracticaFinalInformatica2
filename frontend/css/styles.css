@@ -1,8 +1,242 @@
 * {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
+
+body {
+    background-color: #f4f7f6;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    padding: 20px;
+}
+
+/* PARA INDEX.HTML*/
+.login-container {
+    background-color: #ffffff;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    max-width: 400px; 
+    text-align: center;
+}
+
+h1 {
+    color: #2c3e50;
+    margin-bottom: 25px;
+    font-size: 24px;
+}
+
+/*FORMULARIO*/
+.form-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+label {
+    display: block;
+    margin-bottom: 8px;
+    color: #34495e;
+    font-weight: 600;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #dcdde1;
+    border-radius: 5px;
+    font-size: 16px;
+    transition: border-color 0.3s ease;
+}
+
+input:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 5px rgba(52, 152, 219, 0.3);
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    background-color: #27ae60; 
+    color: white;
+    border: none;
+    border-radius: 5px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-top: 10px;
+}
+
+button:hover {
+    background-color: #219150;
+}
+
+/* Mensajes de error/éxito*/
+#mensaje {
+    margin-top: 15px;
+    font-size: 14px;
+    font-weight: 500;
+    min-height: 20px;
+}
+
+@media (max-width: 480px) {
+    .login-container {
+        padding: 25px;
+    }
+}
+
+/*PARA USUARIO.HTML*/
+
+body.body-panel {
+    display: block; 
+    height: auto;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+/* Contenedor del Mapa */
+#mapa {
+    width: 33.33vw; 
+    height: 500px;  
+    margin: 20px auto; 
+    display: block;    
+    border-radius: 15px;
+    border: 2px solid #007bff;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    z-index: 1;
+}
+
+/* Ajustes para el Filtro */
+.filtro-contenedor {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+#filtroTipo {
+    padding: 10px; 
+    width: 33.33vw; 
+    border-radius: 8px;
+    border: 1px solid #dcdde1;
+}
+
+.body-panel header {
+    background-color: #ffffff;
+    padding: 15px 40px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    width: 100%;
+}
+
+.body-panel main {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.body-panel section {
+    background-color: #ffffff;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    margin-bottom: 30px;
+}
+
+/* ESTILOS DEL MODAL */
+#modalDetalles {
+    display: none; 
+    position: fixed; 
+    top: 0; left: 0; 
+    width: 100%; height: 100%; 
+    background: rgba(0,0,0,0.8); 
+    z-index: 9999; 
+    justify-content: center; 
+    align-items: center;
+}
+
+.modal-content {
+    background: white; 
+    padding: 30px; 
+    border-radius: 15px; 
+    width: 90%; 
+    max-width: 400px; 
+    text-align: center;
+    position: relative;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+}
+
+#cerrarModal {
+    position: absolute; top: 10px; right: 20px; 
+    font-size: 30px; cursor: pointer; color: #999;
+}
+
+/* Botón de reserva dentro del modal */
+#btnReservarModal {
+    background-color: #28a745;
+    margin-top: 20px;
+}
+
+/* Responsividad para el mapa */
+@media (max-width: 768px) {
+    #mapa, #filtroTipo {
+        width: 90vw;
+    }
+}
+
+/* Historial */
+#listaHistorial li {
+    display: flex;
+    justify-content: space-between; 
+    align-items: center;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    border-left: 5px solid #27ae60;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+
+/*CANCELAR RESERVA*/
+.btn-cancelar {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    width: auto; 
+    margin-top: 0; 
+    transition: background 0.3s;
+}
+
+.btn-cancelar:hover {
+    background-color: #c0392b;
+}
+
+.timer {
+    background: #fff3cd;
+    color: #856404;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-family: 'Courier New', Courier, monospace; /* Para que los números no salten */
+    margin-left: 5px;
+    border: 1px solid #ffeeba;
+}
+
+/* Aseguramos que el texto del small sea legible */
+#listaHistorial li div small {
+    display: inline-block;
+    margin-top: 5px;
+    font-size: 0.85rem;
+}
+
 
 body {
   font-family: Arial, sans-serif;

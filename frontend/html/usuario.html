@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usuario - Encuentra tu Cargador</title>
+
+    <link rel="stylesheet" href="../css/styles.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="icon" type="image.png" href="../assets/logo_usuarios.png">
+</head>
+
+<body class="body-panel">
+    <header>
+        <h1 style="text-align: center;">Panel de Usuario</h1>
+        <div style="text-align: right; padding: 10px;">
+            <button id="logoutBtn" style="width: auto; padding: 8px 15px; background-color: #e74c3c;">
+                Cerrar Sesión
+            </button>
+        </div>
+    </header>
+
+    <main>
+        <section id="busqueda">
+            <div class="filtro-contenedor">
+                <h2>Buscar Cargadores</h2>
+                <select id="filtroTipo">
+                    <option value="">-- Todos los tipos --</option>
+                    <option value="Rápido">Rápido</option>
+                    <option value="Estándar">Estándar</option>
+                    <option value="Compatible">Compatible</option>
+                </select>
+            </div>
+
+            <div id="mapa"></div>
+        </section>
+
+        <section id="historial" style="max-width: 800px; margin: 40px auto;">
+            <h2>Mi Historial de Reservas</h2>
+            <ul id="listaHistorial" style="list-style: none; text-align: left;"></ul>
+        </section>
+    </main>
+
+    <div id="modalDetalles">
+        <div class="modal-content">
+            <span id="cerrarModal">&times;</span>
+            <h2 id="modalTitulo" style="color: #2c3e50;">Detalles</h2>
+            <hr>
+            <div id="modalContenido" style="margin: 20px 0; text-align: left;"></div>
+            <button id="btnReservarModal">Reservar Ahora</button>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script type="module" src="../js/main.js"></script>
+    <script>
+        const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
+
+        if (!usuario || usuario.rol !== "usuario") {
+            window.location.href = "index.html";
+        }
+
+        document.getElementById("logoutBtn").onclick = () => {
+            localStorage.removeItem("usuarioLogueado");
+            window.location.href = "index.html";
+        };
+    </script>
+    
+</body>
+</html>
