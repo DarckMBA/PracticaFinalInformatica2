@@ -1,0 +1,59 @@
+/* Estilos generales */
+html, body {
+    margin: 0;
+    height: 100%;
+}
+
+/* Estilos del mapa */
+#mapa {
+    width: 100%;
+    height: 100vh;
+}
+
+
+/* Estilos del buscador */
+#buscador {
+    position: fixed;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    background: white;
+    padding: 8px;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px hsla(0, 0%, 0%, 0.2);
+}
+
+#barraDeBusqueda {
+    display: flex;
+    gap: 8px;
+}
+
+#barraDeBusqueda input {
+    border: none;
+}
+
+#barraDeBusqueda button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#barraDeBusqueda button:hover svg {
+    stroke: hsl(212, 50%, 50%);
+}
+
+#inputBusqueda {
+    width: 280px;
+    padding: 8px;
+    border: none;
+    outline: none;
+}
+
+#inputBusqueda:focus {
+    outline: none;
+}
