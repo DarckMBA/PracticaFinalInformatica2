@@ -60,11 +60,7 @@ function asegurarSelectorEstado() {
 		const cargador = getCargadores().find(c => c.id === idSeleccionado);
 		if (!cargador) return;
 
-		cargador.estado = select.value;
-
-		if (typeof window.seleccionarCargador === 'function') {
-			window.seleccionarCargador(idSeleccionado);
-		}
+		actualizarEstadoCargador(idSeleccionado, select.value);
 	});
 
 	wrapper.appendChild(label);
@@ -75,4 +71,31 @@ function asegurarSelectorEstado() {
 	}
 
 	return { wrapper, select };
+}
+
+async function actualizarEstadoCargador(idCargador, estado) {
+	try {
+		const res = await fetch(`http://localhost:3000/cargadores/${idCargador}/estado`, {
+			method: 'PATCH',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ estado })
+		});
+
+		const data = await res.json();
+		if (!res.ok) {
+			alert(data.error || 'No se pudo actualizar el estado del cargador.');
+			return;
+		}
+
+		const cargador = getCargadores().find(c => c.id === idCargador);
+		if (cargador) {
+			cargador.estado = estado;
+		}
+
+		if (typeof window.seleccionarCargador === 'function') {
+			window.seleccionarCargador(idCargador);
+		}
+	} catch {
+		alert('Error de conexión al actualizar el estado del cargador.');
+	}
 }

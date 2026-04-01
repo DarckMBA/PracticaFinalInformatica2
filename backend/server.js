@@ -31,6 +31,109 @@ app.get("/cargadores", (req, res) => {
     });
 });
 
+app.post("/cargadores", (req, res) => {
+    const { latitud, longitud, tipo, estado, nivel_carga } = req.body;
+
+    if (latitud === undefined || longitud === undefined || !tipo) {
+        return res.status(400).json({ error: "Faltan datos obligatorios del cargador" });
+    }
+
+    const lat = Number(latitud);
+    const lng = Number(longitud);
+    const nivel = nivel_carga === undefined ? 100 : Number(nivel_carga);
+    const estadoFinal = estado || "Libre";
+
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+        return res.status(400).json({ error: "Latitud o longitud inválidas" });
+    }
+
+    if (!Number.isFinite(nivel) || nivel < 0 || nivel > 100) {
+        return res.status(400).json({ error: "Nivel de carga inválido (0-100)" });
+    }
+
+    const sql = `
+        INSERT INTO cargadores (latitud, longitud, tipo, estado, nivel_carga)
+        VALUES (?, ?, ?, ?, ?)
+    `;
+
+    db.query(sql, [lat, lng, tipo, estadoFinal, nivel], (error, result) => {
+        if (error) return res.status(500).json({ error: "Error al crear cargador" });
+        res.status(201).json({
+            mensaje: "Cargador creado correctamente",
+            id_cargador: result.insertId
+        });
+    });
+});
+
+app.patch("/cargadores/:id_cargador/estado", (req, res) => {
+    const { id_cargador } = req.params;
+    const { estado } = req.body;
+
+    const estadosPermitidos = ["Libre", "Ocupado", "En reparación"];
+    if (!estado || !estadosPermitidos.includes(estado)) {
+        return res.status(400).json({ error: "Estado no válido" });
+    }
+
+    const sql = `UPDATE cargadores SET estado = ? WHERE id_cargador = ?`;
+    db.query(sql, [estado, id_cargador], (error, result) => {
+        if (error) return res.status(500).json({ error: "Error al cambiar el estado del cargador" });
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Cargador no encontrado" });
+        }
+
+        res.json({ mensaje: "Estado del cargador actualizado correctamente" });
+    });
+});
+
+app.get("/usuarios", (req, res) => {
+    const sql = `SELECT id_usuario, nombre, email, rol, activo FROM usuarios ORDER BY id_usuario ASC`;
+    db.query(sql, (error, results) => {
+        if (error) return res.status(500).json({ error: "Error al obtener usuarios" });
+        res.json(results);
+    });
+});
+
+app.post("/usuarios", (req, res) => {
+    const { nombre, email, password, rol } = req.body;
+
+    if (!nombre || !email || !password || !rol) {
+        return res.status(400).json({ error: "Faltan campos obligatorios" });
+    }
+
+    const sql = `
+        INSERT INTO usuarios (nombre, email, password, rol, activo)
+        VALUES (?, ?, ?, ?, 1)
+    `;
+
+    db.query(sql, [nombre, email, password, rol], (error, result) => {
+        if (error) {
+            if (error.code === "ER_DUP_ENTRY") {
+                return res.status(409).json({ error: "Ya existe un usuario con ese email" });
+            }
+            return res.status(500).json({ error: "Error al crear usuario" });
+        }
+
+        res.status(201).json({
+            mensaje: "Usuario creado correctamente",
+            id_usuario: result.insertId
+        });
+    });
+});
+
+app.patch("/usuarios/:id_usuario/baja", (req, res) => {
+    const { id_usuario } = req.params;
+
+    const sql = `UPDATE usuarios SET activo = 0 WHERE id_usuario = ?`;
+    db.query(sql, [id_usuario], (error, result) => {
+        if (error) return res.status(500).json({ error: "Error al dar de baja usuario" });
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: "Usuario no encontrado" });
+        }
+
+        res.json({ mensaje: "Usuario dado de baja correctamente" });
+    });
+});
+
 app.post("/reservas", (req, res) => {
     const { id_usuario, id_cargador } = req.body;
     const fechaInicio = new Date();

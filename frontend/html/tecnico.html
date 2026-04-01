@@ -28,6 +28,17 @@
         <section id="busqueda">
             <div class="filtro-contenedor">
                 <h2>Buscar Cargadores</h2>
+                <div id="buscador">
+                    <form id="barraDeBusqueda">
+                        <input tabindex="1" id="inputBusqueda" type="text" placeholder="Ciudad, calle, número..." required />
+                        <button tabindex="2" id="botonBusqueda" title="Busqueda" type="submit">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="9" cy="9" r="8"></circle>
+                                <path d="m22 21-7.5-7.5"></path>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
                 <select id="filtroTipo">
                     <option value="">-- Todos los tipos --</option>
                     <option value="Rápido">Rápido</option>

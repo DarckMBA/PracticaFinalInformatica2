@@ -14,6 +14,7 @@ let cargadores = [
 ];
 
 let cargadorSeleccionadoId = null;
+let marcadorBusqueda = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     cargarCargadores();
@@ -22,10 +23,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const filtroSelect = document.getElementById('filtroTipo');
     if (filtroSelect) {
-        filtroSelect.addEventListener('change', (e) => {
-            const tipo = e.target.value;
-            const filtrados = tipo ? cargadores.filter(c => c.tipo === tipo) : cargadores;
-            pintarCargadores(filtrados);
+        filtroSelect.addEventListener('change', aplicarFiltroTipo);
+    }
+
+    const barraBusqueda = document.getElementById('barraDeBusqueda');
+    const inputBusqueda = document.getElementById('inputBusqueda');
+    if (barraBusqueda && inputBusqueda) {
+        barraBusqueda.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const consulta = inputBusqueda.value.trim();
+            if (!consulta) return;
+
+            const encontrado = await buscarUbicacion(consulta);
+            if (!encontrado) {
+                alert('No se ha encontrado la ubicacion. Pruebe con una dirección mas específica.');
+            }
         });
     }
 
@@ -57,18 +70,18 @@ export function cargarCargadores() {
             }));
 
             if (getMap()) {
-                pintarCargadores(cargadores);
+                aplicarFiltroTipo();
                 return;
             }
 
             navigator.geolocation.getCurrentPosition(
                 ({ coords }) => {
                     initMap(coords.latitude, coords.longitude);
-                    pintarCargadores(cargadores);
+                    aplicarFiltroTipo();
                 },
                 () => {
                     initMap(40.4168, -3.7038);
-                    pintarCargadores(cargadores);
+                    aplicarFiltroTipo();
                 }
             );
         })
@@ -76,7 +89,7 @@ export function cargarCargadores() {
             if (!getMap()) {
                 initMap(40.4168, -3.7038);
             }
-            pintarCargadores(cargadores);
+            aplicarFiltroTipo();
         });
 }
 
@@ -86,6 +99,61 @@ export function getCargadores() {
 
 export function getCargadorSeleccionadoId() {
     return cargadorSeleccionadoId;
+}
+
+function aplicarFiltroTipo() {
+    const filtroSelect = document.getElementById('filtroTipo');
+    const tipo = filtroSelect ? filtroSelect.value : '';
+    const filtrados = tipo ? cargadores.filter(c => c.tipo === tipo) : cargadores;
+    pintarCargadores(filtrados);
+}
+
+async function buscarUbicacion(consulta) {
+    const mapa = getMap();
+    if (!mapa) {
+        return false;
+    }
+
+    try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(consulta)}`;
+        const res = await fetch(url, {
+            headers: {
+                'Accept-Language': 'es'
+            }
+        });
+
+        if (!res.ok) {
+            return false;
+        }
+
+        const data = await res.json();
+        if (!Array.isArray(data) || data.length === 0) {
+            return false;
+        }
+
+        const { lat, lon, display_name: nombre } = data[0];
+        const latNum = Number(lat);
+        const lonNum = Number(lon);
+
+        if (!Number.isFinite(latNum) || !Number.isFinite(lonNum)) {
+            return false;
+        }
+
+        mapa.setView([latNum, lonNum], 15);
+        if (marcadorBusqueda) {
+            mapa.removeLayer(marcadorBusqueda);
+        }
+
+        marcadorBusqueda = L.marker([latNum, lonNum]).addTo(mapa)
+            .bindPopup(`Resultado: ${nombre}`);
+        marcadorBusqueda.openPopup();
+
+        aplicarFiltroTipo();
+
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 window.seleccionarCargador = function(id) {
