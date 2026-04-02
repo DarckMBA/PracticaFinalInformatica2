@@ -4,12 +4,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Aplicación web para localizar cargadores de coche">
-    <meta name="author" content="Marc Baleiron, Leo Seguín, Juan Ignacio Gonzalez, Carlos, Abanades">
     <title>Encuentra tu Cargador</title>
 
     <link rel="stylesheet" href="../css/styles.css" />
-
     <link
         rel="stylesheet"
         href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -17,25 +14,68 @@
         crossorigin=""
     />
 </head>
-<body>
-    <div id="mapa"></div>
-
-    <!-- Buscador -->
-    <div id="buscador">
-        <form id="barraDeBusqueda">
-            <input tabindex="1" id="inputBusqueda" type="text" placeholder="Ciudad, calle, número..." required />
-            <button tabindex="2" id="botonBusqueda" title="Busqueda" type="submit">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="9" cy="9" r="8"></circle>
-                    <path d="m22 21-7.5-7.5"></path>
-                </svg>
+<body class="body-panel">
+    <header>
+        <h1 style="text-align: center;">Panel de Administrador</h1>
+        <div style="text-align: right; padding: 10px;">
+            <button id="logoutBtn" style="width: auto; padding: 8px 15px; background-color: #e74c3c;">
+                Cerrar Sesión
             </button>
-        </form>
+        </div>
+    </header>
+
+    <main>
+        <section id="busqueda">
+            <div class="filtro-contenedor">
+                <div class="cargadores-header">
+                    <h2>Buscar Cargadores</h2>
+                    <button class="btnCrearCargador">Crear cargador</button>
+                </div>
+                <div id="buscador">
+                    <form id="barraDeBusqueda">
+                        <input tabindex="1" id="inputBusqueda" type="text" placeholder="Ciudad, calle, número..." required />
+                        <button tabindex="2" id="botonBusqueda" title="Busqueda" type="submit">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="9" cy="9" r="8"></circle>
+                                <path d="m22 21-7.5-7.5"></path>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+                <select id="filtroTipo">
+                    <option value="">-- Todos los tipos --</option>
+                    <option value="Rápido">Rápido</option>
+                    <option value="Estándar">Estándar</option>
+                    <option value="Compatible">Compatible</option>
+                </select>
+            </div>
+
+            <div id="mapa"></div>
+        </section>
+
+        <section id="usuarios" style="max-width: 800px; margin: 40px auto;">
+            <div class="usuarios-header">
+                <h2>Lista de usuarios</h2>
+                <div class="usuarios-actions">
+                    <button class="btnDarDeBaja">Dar de baja</button>
+                    <button class="btnCrearUsuario">Crear usuario</button>
+                </div>
+            </div>
+            <ul id="listaUsuarios" style="list-style: none; text-align: left;"></ul>
+        </section>
+    </main>
+
+    <div id="modalDetalles">
+        <div class="modal-content">
+            <span id="cerrarModal">&times;</span>
+            <h2 id="modalTitulo" style="color: #2c3e50;">Detalles</h2>
+            <hr>
+            <div id="modalContenido" style="margin: 20px 0; text-align: left;"></div>
+            <button id="btnReservarModal">Reservar Ahora</button>
+            <button id="btnCambiarEstado">Cambiar Estado</button>
+        </div>
     </div>
-    <button class="btn btn-azul">Reservar</button>
-<button class="btn btn-verde">Crear usuario</button>
-<button class="btn btn-rojo">Dar de baja</button>
-<button class="btn btn-naranja">Reportar incidencia</button>
+
     <script
         src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
         integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
@@ -43,12 +83,20 @@
     ></script>
 
     <script type="module" src="../js/main.js"></script>
-
-    <script src="../js/seguridad/middleware/auth.js"></script>
+    <script type="module" src="../js/admin.js"></script>
+    <!--
     <script>
-    comprobarAcceso("admin");
+        const admin = JSON.parse(localStorage.getItem("adminLogueado"));
+
+        if (!admin || admin.rol !== "admin") {
+            window.location.href = "index.html";
+        }
+
+        document.getElementById("logoutBtn").onclick = () => {
+            localStorage.removeItem("adminLogueado");
+            window.location.href = "index.html";
+        };
     </script>
-
-
+    -->
 </body>
 </html>

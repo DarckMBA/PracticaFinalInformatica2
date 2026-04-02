@@ -14,7 +14,7 @@ body {
     padding: 20px;
 }
 
-/* PARA INDEX.HTML*/
+/* INDEX.HTML */
 .login-container {
     background-color: #ffffff;
     padding: 40px;
@@ -31,7 +31,7 @@ h1 {
     font-size: 24px;
 }
 
-/*FORMULARIO*/
+/* FORMULARIO */
 .form-group {
     margin-bottom: 20px;
     text-align: left;
@@ -91,38 +91,12 @@ button:hover {
     }
 }
 
-/*PARA USUARIO.HTML*/
-
+/* General Roles */
 body.body-panel {
     display: block; 
     height: auto;
     padding: 0;
     overflow-x: hidden;
-}
-
-/* Contenedor del Mapa */
-#mapa {
-    width: 33.33vw; 
-    height: 500px;  
-    margin: 20px auto; 
-    display: block;    
-    border-radius: 15px;
-    border: 2px solid #007bff;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-    z-index: 1;
-}
-
-/* Ajustes para el Filtro */
-.filtro-contenedor {
-    text-align: center;
-    margin-bottom: 10px;
-}
-
-#filtroTipo {
-    padding: 10px; 
-    width: 33.33vw; 
-    border-radius: 8px;
-    border: 1px solid #dcdde1;
 }
 
 .body-panel header {
@@ -146,6 +120,59 @@ body.body-panel {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
     margin-bottom: 30px;
 }
+
+/* USUARIO.HTML */
+
+/* Contenedor del Mapa */
+#mapa {
+    width: 33.33vw; 
+    height: 500px;  
+    margin: 20px auto; 
+    display: block;    
+    border-radius: 15px;
+    border: 2px solid #007bff;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    z-index: 1;
+}
+
+/* Ajustes para el Filtro */
+.filtro-contenedor {
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+#buscador {
+  width: 33.33vw;
+  margin: 0 auto 12px;
+}
+
+#barraDeBusqueda {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+#barraDeBusqueda #inputBusqueda {
+  margin: 0;
+}
+
+#botonBusqueda {
+  width: auto;
+  min-width: 46px;
+  margin-top: 0;
+  padding: 10px 12px;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+}
+
+#filtroTipo {
+    padding: 10px; 
+    width: 33.33vw; 
+    border-radius: 8px;
+    border: 1px solid #dcdde1;
+}
+
 
 /* ESTILOS DEL MODAL */
 #modalDetalles {
@@ -181,9 +208,14 @@ body.body-panel {
     margin-top: 20px;
 }
 
+#btnCambiarEstado {
+    background-color: #0089de;
+    margin-top: 20px;
+}
+
 /* Responsividad para el mapa */
 @media (max-width: 768px) {
-    #mapa, #filtroTipo {
+  #mapa, #filtroTipo, #buscador {
         width: 90vw;
     }
 }
@@ -363,6 +395,117 @@ section {
 section h2 {
   margin-bottom: 15px;
   color: #0078d4;
+}
+
+.usuarios-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 15px;
+}
+
+.usuarios-header h2 {
+  margin-bottom: 0;
+}
+
+.usuarios-header .btnCrearUsuario {
+  width: auto;
+  margin-top: 0;
+  padding: 10px 14px;
+}
+
+.usuarios-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.usuarios-actions .btnDarDeBaja,
+.usuarios-actions .btnCrearUsuario {
+  width: auto;
+  margin-top: 0;
+  padding: 10px 14px;
+}
+
+.usuarios-actions .btnDarDeBaja {
+  background-color: #e74c3c;
+  color: #fff;
+}
+
+.usuarios-actions .btnDarDeBaja:hover {
+  background-color: #c0392b;
+}
+
+.cargadores-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.cargadores-header h2 {
+  margin-bottom: 0;
+}
+
+.cargadores-header .btnCrearCargador {
+  width: auto;
+  margin-top: 0;
+  padding: 10px 14px;
+}
+
+.admin-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+}
+
+.admin-dialog {
+  background: #fff;
+  border-radius: 12px;
+  padding: 18px;
+  width: min(92vw, 360px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.admin-dialog-title {
+  margin: 0 0 12px 0;
+  color: #0078d4;
+}
+
+.admin-dialog-select {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.admin-dialog-text {
+  margin: 0;
+  color: #333;
+  line-height: 1.45;
+}
+
+.admin-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.admin-dialog-btn {
+  width: auto;
+  margin-top: 0;
+  padding: 8px 12px;
+}
+
+.admin-dialog-btn-cancel {
+  background: #6c757d;
 }
 
 section p {
