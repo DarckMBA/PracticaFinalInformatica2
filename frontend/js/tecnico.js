@@ -1,101 +1,192 @@
-import { getCargadores, getCargadorSeleccionadoId } from './main.js';
+import { initMap, pintarCargadores } from './mapa.js';
 
-const estadosDisponibles = ['Libre', 'Ocupado', 'En reparación'];
+let cargadores = [];
+let cargadorSeleccionadoId = null;
+let mapaInicializado = false;
 
 document.addEventListener('DOMContentLoaded', () => {
-	const btnCambiarEstado = document.getElementById('btnCambiarEstado');
-	if (!btnCambiarEstado) return;
+    cargarCargadores();
+    cargarReportes();
 
-	btnCambiarEstado.addEventListener('click', () => {
-		const estadoUI = asegurarSelectorEstado();
-		const cargador = getCargadores().find(c => c.id === getCargadorSeleccionadoId());
+    const filtroSelect = document.getElementById('filtroTipo');
+    if (filtroSelect) {
+        filtroSelect.addEventListener('change', (e) => {
+            const tipo = e.target.value;
+            const filtrados = tipo ? cargadores.filter(c => c.tipo === tipo) : cargadores;
+            pintarCargadoresTecnico(filtrados);
+        });
+    }
 
-		if (!cargador) {
-			alert('Seleccione un cargador para cambiar su estado.');
-			return;
-		}
+    document.getElementById("cerrarModal").onclick = () => {
+        document.getElementById("modalDetalles").style.display = "none";
+    };
 
-		estadoUI.select.value = cargador.estado;
-		const visible = estadoUI.wrapper.style.display === 'block';
-		estadoUI.wrapper.style.display = visible ? 'none' : 'block';
-	});
+    document.getElementById("btnCambiarEstado").onclick = async () => {
+        const select = document.getElementById("estadoSelector");
+        let nuevoEstado = select.value;
+
+        if (!cargadorSeleccionadoId) {
+            alert("Selecciona un cargador.");
+            return;
+        }
+
+        if (nuevoEstado === "Operativo") {
+            nuevoEstado = "Libre";
+        }
+
+        try {
+            const res = await fetch(`http://localhost:3000/cargadores/${cargadorSeleccionadoId}/estado`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ estado: nuevoEstado })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                alert(data.error || "No se pudo actualizar el estado.");
+                return;
+            }
+
+            const cargador = cargadores.find(c => c.id === cargadorSeleccionadoId);
+            if (cargador) cargador.estado = nuevoEstado;
+
+            pintarCargadoresTecnico(cargadores);
+            seleccionarCargador(cargadorSeleccionadoId);
+            cargarReportes();
+
+            alert("Estado actualizado correctamente.");
+        } catch (error) {
+            alert("Error de conexión.");
+        }
+    };
 });
 
-function asegurarSelectorEstado() {
-	let wrapper = document.getElementById('estadoSelectorWrap');
-	let select = document.getElementById('estadoSelector');
+function cargarCargadores() {
+    fetch("http://localhost:3000/cargadores")
+        .then(res => res.json())
+        .then(data => {
+            cargadores = data.map(c => ({
+                id: c.id_cargador,
+                lat: Number(c.latitud),
+                lng: Number(c.longitud),
+                tipo: c.tipo,
+                estado: c.estado,
+                nivelCarga: c.nivel_carga
+            }));
 
-	if (wrapper && select) {
-		return { wrapper, select };
-	}
-
-	const btnCambiarEstado = document.getElementById('btnCambiarEstado');
-	wrapper = document.createElement('div');
-	wrapper.id = 'estadoSelectorWrap';
-	wrapper.style.display = 'none';
-	wrapper.style.marginTop = '10px';
-
-	const label = document.createElement('label');
-	label.htmlFor = 'estadoSelector';
-	label.textContent = 'Nuevo estado:';
-	label.style.display = 'block';
-	label.style.marginBottom = '6px';
-
-	select = document.createElement('select');
-	select.id = 'estadoSelector';
-	select.style.width = '100%';
-	select.style.padding = '8px';
-	select.style.borderRadius = '8px';
-	select.style.border = '1px solid #dcdde1';
-
-	estadosDisponibles.forEach((estado) => {
-		const option = document.createElement('option');
-		option.value = estado;
-		option.textContent = estado;
-		select.appendChild(option);
-	});
-
-	select.addEventListener('change', () => {
-		const idSeleccionado = getCargadorSeleccionadoId();
-		const cargador = getCargadores().find(c => c.id === idSeleccionado);
-		if (!cargador) return;
-
-		actualizarEstadoCargador(idSeleccionado, select.value);
-	});
-
-	wrapper.appendChild(label);
-	wrapper.appendChild(select);
-
-	if (btnCambiarEstado && btnCambiarEstado.parentNode) {
-		btnCambiarEstado.insertAdjacentElement('afterend', wrapper);
-	}
-
-	return { wrapper, select };
+            if (!mapaInicializado) {
+                navigator.geolocation.getCurrentPosition(
+                    ({ coords }) => {
+                        initMap(coords.latitude, coords.longitude);
+                        pintarCargadoresTecnico(cargadores);
+                        mapaInicializado = true;
+                    },
+                    () => {
+                        initMap(40.4168, -3.7038);
+                        pintarCargadoresTecnico(cargadores);
+                        mapaInicializado = true;
+                    }
+                );
+            } else {
+                pintarCargadoresTecnico(cargadores);
+            }
+        })
+        .catch(() => {
+            alert("Error al cargar cargadores.");
+        });
 }
 
-async function actualizarEstadoCargador(idCargador, estado) {
-	try {
-		const res = await fetch(`http://localhost:3000/cargadores/${idCargador}/estado`, {
-			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ estado })
-		});
-
-		const data = await res.json();
-		if (!res.ok) {
-			alert(data.error || 'No se pudo actualizar el estado del cargador.');
-			return;
-		}
-
-		const cargador = getCargadores().find(c => c.id === idCargador);
-		if (cargador) {
-			cargador.estado = estado;
-		}
-
-		if (typeof window.seleccionarCargador === 'function') {
-			window.seleccionarCargador(idCargador);
-		}
-	} catch {
-		alert('Error de conexión al actualizar el estado del cargador.');
-	}
+function pintarCargadoresTecnico(lista) {
+    pintarCargadores(lista);
+    window.seleccionarCargador = seleccionarCargador;
 }
+
+function seleccionarCargador(id) {
+    cargadorSeleccionadoId = id;
+    const c = cargadores.find(item => item.id === id);
+
+    if (!c) return;
+
+    document.getElementById("modalContenido").innerHTML = `
+        <p><strong>ID:</strong> #${c.id}</p>
+        <p><strong>Tipo:</strong> ${c.tipo}</p>
+        <p><strong>Estado actual:</strong> ${c.estado}</p>
+        <p><strong>Carga:</strong> ${c.nivelCarga}%</p>
+    `;
+
+    document.getElementById("estadoSelector").value = c.estado;
+    document.getElementById("modalDetalles").style.display = "flex";
+}
+
+function cargarReportes() {
+    fetch("http://localhost:3000/incidencias")
+        .then(res => res.json())
+        .then(data => {
+            const lista = document.getElementById("listaReportes");
+
+            if (!Array.isArray(data) || data.length === 0) {
+                lista.innerHTML = "<li>Sin reportes registrados.</li>";
+                return;
+            }
+
+            lista.innerHTML = data.map(rep => `
+                <li style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:10px;">
+                    <strong>Cargador #${rep.id_cargador}</strong><br>
+                    <small>Descripción: ${rep.descripcion}</small><br>
+                    <small>Estado: <b>${rep.estado}</b></small><br>
+                    <small>Fecha: ${new Date(rep.fecha_reporte).toLocaleString()}</small><br>
+                    ${rep.comentario_tecnico ? `<small><b>Comentario técnico:</b> ${rep.comentario_tecnico}</small><br>` : ""}
+
+                    ${
+                        rep.estado !== "Resuelta"
+                            ? `
+                            <textarea id="comentario-${rep.id_incidencia}" placeholder="Escribe qué se hizo..." style="width:100%; margin-top:10px; padding:8px;"></textarea>
+                            <button onclick="resolverIncidencia(${rep.id_incidencia})" style="margin-top:10px;">
+                                Marcar resuelta
+                            </button>
+                            `
+                            : ""
+                    }
+                </li>
+            `).join("");
+        })
+        .catch(() => {
+            document.getElementById("listaReportes").innerHTML = "<li>Error al cargar reportes.</li>";
+        });
+}
+
+window.resolverIncidencia = async function(idIncidencia) {
+    const textarea = document.getElementById(`comentario-${idIncidencia}`);
+    const comentario = textarea ? textarea.value.trim() : "";
+
+    if (comentario === "") {
+        alert("Escribe un comentario técnico antes de resolver la incidencia.");
+        return;
+    }
+
+    try {
+        const res = await fetch(`http://localhost:3000/incidencias/${idIncidencia}/resolver`, {
+            method: "PATCH",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                comentario_tecnico: comentario
+            })
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            alert(data.error || "No se pudo resolver la incidencia");
+            return;
+        }
+
+        alert("Incidencia resuelta correctamente");
+        cargarReportes();
+        cargarCargadores();
+    } catch (error) {
+        alert("Error de conexión");
+    }
+};

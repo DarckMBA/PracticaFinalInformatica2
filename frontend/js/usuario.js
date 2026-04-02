@@ -1,131 +1,350 @@
-import { getCargadores, getCargadorSeleccionadoId } from './main.js';
-import { pintarCargadores } from './mapa.js';
+import { initMap, pintarCargadores } from '../js/mapa.js';
+
+let cargadores = [];
+let cargadorSeleccionadoId = null;
+let intervaloBateria = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-	actualizarHistorialUI();
-	setInterval(actualizarHistorialUI, 60000);
+    // Pedimos permiso para notificaciones al arrancar
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+    }
 
-	const btnReservar = document.getElementById('btnReservarModal');
-	if (btnReservar) {
-		btnReservar.onclick = reservarCargador;
-	}
+    actualizarHistorialUI();
+    cargarCargadores();
+
+    // Refresca cargadores e historial cada minuto
+    setInterval(() => {
+        actualizarHistorialUI();
+        cargarCargadores();
+    }, 60000);
+
+    // Filtro por tipo de cargador
+    const filtroSelect = document.getElementById('filtroTipo');
+    if (filtroSelect) {
+        filtroSelect.addEventListener('change', (e) => {
+            const tipo = e.target.value;
+            const filtrados = tipo ? cargadores.filter(c => c.tipo === tipo) : cargadores;
+            pintarCargadores(filtrados);
+        });
+    }
+
+    // Botón reservar del modal
+    document.getElementById("btnReservarModal").onclick = async () => {
+        const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
+        const cargador = cargadores.find(c => c.id === cargadorSeleccionadoId);
+
+        if (!usuario) { alert("Debes iniciar sesión."); return; }
+        if (!cargador || cargador.estado !== "Libre") { alert("No disponible."); return; }
+
+        try {
+            const respuesta = await fetch("http://localhost:3000/reservas", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id_usuario: usuario.id_usuario,
+                    id_cargador: cargador.id
+                })
+            });
+
+            const data = await respuesta.json();
+            if (!respuesta.ok) { alert(data.error); return; }
+
+            // Guardamos la batería inicial aleatoria (10–40%) vinculada a la reserva
+            const bateriaInicial = Math.floor(Math.random() * 31) + 10;
+            localStorage.setItem(`bateria_${data.id_reserva}`, bateriaInicial);
+
+            cargador.estado = "Ocupado";
+            pintarCargadores(cargadores);
+            actualizarHistorialUI();
+            document.getElementById("modalDetalles").style.display = "none";
+            alert("Reserva guardada correctamente.");
+        } catch {
+            alert("No se pudo conectar con el servidor.");
+        }
+    };
+
+    document.getElementById("cerrarModal").onclick = () => {
+        document.getElementById("modalDetalles").style.display = "none";
+    };
+
+    // Reportar incidencia
+    const btnCrearIncidencia = document.getElementById("btnCrearIncidencia");
+    if (btnCrearIncidencia) {
+        btnCrearIncidencia.onclick = async () => {
+            const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
+            const idCargador = document.getElementById("incidenciaCargador").value;
+            const descripcion = document.getElementById("incidenciaDescripcion").value.trim();
+
+            if (!usuario) { alert("Debes iniciar sesión."); return; }
+            if (!idCargador || descripcion === "") { alert("Completa todos los campos."); return; }
+
+            try {
+                const res = await fetch("http://localhost:3000/incidencias", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        id_usuario: usuario.id_usuario,
+                        id_cargador: Number(idCargador),
+                        descripcion
+                    })
+                });
+
+                const data = await res.json();
+                if (!res.ok) { alert(data.error); return; }
+
+                alert("Incidencia enviada correctamente.");
+                document.getElementById("incidenciaCargador").value = "";
+                document.getElementById("incidenciaDescripcion").value = "";
+            } catch {
+                alert("No se pudo enviar la incidencia.");
+            }
+        };
+    }
+
+    window.onclick = (e) => {
+        if (e.target === document.getElementById("modalDetalles")) {
+            document.getElementById("modalDetalles").style.display = "none";
+        }
+    };
 });
 
-async function reservarCargador() {
-	const usuario = JSON.parse(localStorage.getItem('usuarioLogueado'));
-	const cargador = getCargadores().find(c => c.id === getCargadorSeleccionadoId());
+// ─── MAPA ─────────────────────────────────────────────────────────────────────
 
-	if (!usuario) {
-		alert('Debes iniciar sesión.');
-		return;
-	}
+function cargarCargadores() {
+    fetch("http://localhost:3000/cargadores")
+        .then(res => res.json())
+        .then(data => {
+            cargadores = data.map(c => ({
+                id: c.id_cargador,
+                lat: Number(c.latitud),
+                lng: Number(c.longitud),
+                tipo: c.tipo,
+                estado: c.estado,
+                nivelCarga: c.nivel_carga
+            }));
 
-	if (!cargador || cargador.estado !== 'Libre') {
-		alert('No disponible.');
-		return;
-	}
-
-	try {
-		const respuesta = await fetch('http://localhost:3000/reservas', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
-				id_usuario: usuario.id_usuario,
-				id_cargador: cargador.id
-			})
-		});
-
-		const data = await respuesta.json();
-
-		if (!respuesta.ok) {
-			alert(data.error || 'No se pudo guardar la reserva.');
-			return;
-		}
-
-		cargador.estado = 'Ocupado';
-		pintarCargadores(getCargadores());
-		actualizarHistorialUI();
-
-		const modal = document.getElementById('modalDetalles');
-		if (modal) {
-			modal.style.display = 'none';
-		}
-
-		alert('Reserva guardada correctamente.');
-	} catch (error) {
-		alert('No se pudo conectar con el servidor.');
-	}
+            navigator.geolocation.getCurrentPosition(
+                ({ coords }) => {
+                    initMap(coords.latitude, coords.longitude);
+                    pintarCargadores(cargadores);
+                },
+                () => {
+                    initMap(40.4168, -3.7038);
+                    pintarCargadores(cargadores);
+                }
+            );
+        })
+        .catch(() => {
+            initMap(40.4168, -3.7038);
+            pintarCargadores(cargadores);
+        });
 }
 
-window.cancelarReserva = async function(idCargador) {
-	if (!confirm('¿Cancelar reserva?')) return;
+window.seleccionarCargador = function (id) {
+    cargadorSeleccionadoId = id;
+    const c = cargadores.find(item => item.id === id);
+    const modal = document.getElementById("modalDetalles");
+    const btnReservar = document.getElementById("btnReservarModal");
 
-	try {
-		const res = await fetch(`http://localhost:3000/reservas/${idCargador}`, {
-			method: 'DELETE'
-		});
+    if (!c || !modal) return;
 
-		const data = await res.json();
+    const tiempos = { 'Rápido': '15 min', 'Estándar': '30 min', 'Compatible': '45 min' };
+    const costes  = { 'Rápido': '20€',    'Estándar': '10€',    'Compatible': '8€'    };
 
-		if (!res.ok) {
-			alert(data.error || 'Error al cancelar');
-			return;
-		}
+    btnReservar.style.backgroundColor = c.estado !== 'Libre' ? "grey" : "#28a745";
+    btnReservar.disabled = c.estado !== 'Libre';
+    btnReservar.innerText = c.estado !== 'Libre' ? "No disponible" : "Reservar Ahora";
 
-		const cargador = getCargadores().find(c => c.id === idCargador);
-		if (cargador) cargador.estado = 'Libre';
+    document.getElementById("modalContenido").innerHTML = `
+    <p><strong>ID:</strong> #${c.id}</p>
+    <p><strong>Tipo:</strong> ${c.tipo}</p>
+    <p><strong>Estado:</strong> <span style="color:${c.estado === 'Libre' ? 'green' : 'red'}">${c.estado}</span></p>
+    <p>⏱ <strong>Tiempo de carga:</strong> ${tiempos[c.tipo] || '30 min'}</p>
+    <p>💰 <strong>Precio:</strong> ${costes[c.tipo] || '10€'}</p>
+    <a href="https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}"
+    target="_blank"
+    style="display:inline-block; margin-top:10px; padding:10px 15px; background:#4285F4; color:white; border-radius:8px; text-decoration:none; font-weight:bold;">
+    Cómo llegar
+    </a>
+`;
 
-		pintarCargadores(getCargadores());
-		actualizarHistorialUI();
-
-		alert('Reserva cancelada correctamente.');
-	} catch (error) {
-		alert('Error al cancelar la reserva.');
-	}
+    modal.style.display = "flex";
 };
 
-async function actualizarHistorialUI() {
-	const lista = document.getElementById('listaHistorial');
-	const usuario = JSON.parse(localStorage.getItem('usuarioLogueado'));
+// ─── CANCELAR RESERVA ─────────────────────────────────────────────────────────
 
-	if (!usuario || !lista) return;
+window.cancelarReserva = async function (idCargador) {
+    if (!confirm("¿Cancelar reserva?")) return;
 
-	try {
-		const res = await fetch(`http://localhost:3000/reservas/usuario/${usuario.id_usuario}`);
-		const historial = await res.json();
+    try {
+        const res = await fetch(`http://localhost:3000/reservas/${idCargador}`, { method: "DELETE" });
+        const data = await res.json();
 
-		if (!Array.isArray(historial) || historial.length === 0) {
-			lista.innerHTML = "<li style='border-left: 5px solid #ccc;'>Sin historial de reservas.</li>";
-			return;
-		}
+        if (!res.ok) { alert(data.error || "Error al cancelar"); return; }
 
-		lista.innerHTML = historial.map((reserva) => {
-			const fechaInicio = new Date(reserva.fecha_inicio).toLocaleString();
-			const fechaFin = new Date(reserva.fecha_fin).toLocaleString();
+        const cargador = cargadores.find(c => c.id === idCargador);
+        if (cargador) cargador.estado = "Libre";
 
-			let colorEstado = '#666';
-			if (reserva.estado === 'Activa') colorEstado = 'green';
-			if (reserva.estado === 'Cancelada') colorEstado = 'red';
-			if (reserva.estado === 'Finalizada') colorEstado = 'blue';
+        pintarCargadores(cargadores);
+        actualizarHistorialUI();
+        alert("Reserva cancelada correctamente.");
+    } catch {
+        alert("Error al cancelar la reserva.");
+    }
+};
 
-			const botonCancelar = reserva.estado === 'Activa'
-				? `<button class="btn-cancelar" onclick="cancelarReserva(${reserva.id_cargador})">Cancelar</button>`
-				: '';
+// ─── HISTORIAL CON BATERÍA EN VIVO ───────────────────────────────────────────
 
-			return `
-				<li>
-					<div>
-						<strong>Cargador #${reserva.id_cargador}</strong> (${reserva.tipo})<br>
-						<small>Inicio: ${fechaInicio}</small><br>
-						<small>Fin: ${fechaFin}</small><br>
-						<small>Estado: <span style="color:${colorEstado}; font-weight:bold;">${reserva.estado}</span></small>
-					</div>
-					${botonCancelar}
-				</li>
-			`;
-		}).join('');
-	} catch (error) {
-		lista.innerHTML = '<li>Error al cargar el historial.</li>';
-	}
+/**
+ * Calcula el % de batería actual del coche en función del tiempo transcurrido.
+ * La batería inicial se guarda en localStorage al hacer la reserva.
+ * Si no existe (reserva antigua), se usa un valor derivado del id_reserva.
+ */
+function calcularBateria(reserva) {
+    const inicio = new Date(reserva.fecha_inicio).getTime();
+    const fin    = new Date(reserva.fecha_fin).getTime();
+    const ahora  = Date.now();
+
+    // Batería inicial: de localStorage si existe, si no pseudo-aleatoria pero estable
+    const guardada = localStorage.getItem(`bateria_${reserva.id_reserva}`);
+    const bateriaInicial = guardada !== null
+        ? Number(guardada)
+        : 10 + (reserva.id_reserva * 7 % 31); // 10–40 %, estable por id
+
+    if (ahora >= fin) return 100;
+    if (ahora <= inicio) return bateriaInicial;
+
+    const progreso = (ahora - inicio) / (fin - inicio);
+    return Math.round(bateriaInicial + progreso * (100 - bateriaInicial));
 }
 
+function colorBateria(pct) {
+    if (pct < 30) return "#e74c3c";  // rojo
+    if (pct < 60) return "#f39c12";  // naranja
+    return "#27ae60";                 // verde
+}
+
+function renderizarHistorial(historial) {
+    const lista = document.getElementById("listaHistorial");
+    if (!lista) return;
+
+    if (!Array.isArray(historial) || historial.length === 0) {
+        lista.innerHTML = "<li style='border-left: 5px solid #ccc;'>Sin historial de reservas.</li>";
+        return;
+    }
+
+    lista.innerHTML = historial.map((reserva) => {
+        const fechaInicio = new Date(reserva.fecha_inicio).toLocaleString();
+        const fechaFin    = new Date(reserva.fecha_fin).toLocaleString();
+
+        const colores = { "Activa": "green", "Cancelada": "red", "Finalizada": "blue" };
+        const colorEstado = colores[reserva.estado] || "#666";
+
+        const botonCancelar = reserva.estado === "Activa"
+            ? `<button class="btn-cancelar" onclick="cancelarReserva(${reserva.id_cargador})">Cancelar</button>`
+            : "";
+
+        // Barra de batería solo para reservas activas
+        let barraBateria = "";
+        if (reserva.estado === "Activa") {
+            const pct   = calcularBateria(reserva);
+            const color = colorBateria(pct);
+            barraBateria = `
+                <div style="margin-top: 8px;">
+                    <small>🔋 Cargando: <strong id="pct-${reserva.id_reserva}">${pct}%</strong></small>
+                    <div style="background:#e0e0e0; border-radius:6px; height:10px; margin-top:4px; overflow:hidden;">
+                        <div id="barra-${reserva.id_reserva}"
+                             style="height:100%; width:${pct}%; background:${color}; border-radius:6px; transition: width 1s ease;">
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <li data-reserva-id="${reserva.id_reserva}"
+                data-inicio="${reserva.fecha_inicio}"
+                data-fin="${reserva.fecha_fin}"
+                data-estado="${reserva.estado}">
+                <div>
+                    <strong>Cargador #${reserva.id_cargador}</strong> (${reserva.tipo})<br>
+                    <small>Inicio: ${fechaInicio}</small><br>
+                    <small>Fin: ${fechaFin}</small><br>
+                    <small>Estado: <span style="color:${colorEstado}; font-weight:bold;">${reserva.estado}</span></small>
+                    ${barraBateria}
+                </div>
+                ${botonCancelar}
+            </li>
+        `;
+    }).join("");
+}
+
+async function actualizarHistorialUI() {
+    const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
+    if (!usuario) return;
+
+    try {
+        const res = await fetch(`http://localhost:3000/reservas/usuario/${usuario.id_usuario}`);
+        const historial = await res.json();
+
+        renderizarHistorial(historial);
+        arrancarTickerBateria(historial);
+    } catch {
+        const lista = document.getElementById("listaHistorial");
+        if (lista) lista.innerHTML = "<li>Error al cargar el historial.</li>";
+    }
+}
+
+/**
+ * Lanza una notificación del navegador cuando la carga del coche llega al 100%.
+ * Si el usuario denegó los permisos, muestra un alert como fallback.
+ */
+function notificarCargaCompleta(reserva) {
+    const titulo  = "⚡ ¡Carga completa!";
+    const mensaje = `Tu coche en el cargador #${reserva.id_cargador} (${reserva.tipo}) ya está al 100%. Puedes retirarlo.`;
+
+    if ("Notification" in window && Notification.permission === "granted") {
+        new Notification(titulo, {
+            body: mensaje,
+            icon: "../assets/logo_usuarios.png"
+        });
+    } else {
+        // Fallback si el usuario denegó los permisos
+        alert(`${titulo}\n${mensaje}`);
+    }
+}
+
+function arrancarTickerBateria(historial) {
+    if (intervaloBateria) clearInterval(intervaloBateria);
+
+    const activas = historial.filter(r => r.estado === "Activa");
+    if (activas.length === 0) return;
+
+    // Guardamos qué reservas ya notificamos para no repetir
+    const yaNotificadas = new Set();
+
+    intervaloBateria = setInterval(() => {
+        activas.forEach(reserva => {
+            const pct   = calcularBateria(reserva);
+            const color = colorBateria(pct);
+
+            const elPct   = document.getElementById(`pct-${reserva.id_reserva}`);
+            const elBarra = document.getElementById(`barra-${reserva.id_reserva}`);
+
+            if (elPct)   elPct.textContent   = `${pct}%`;
+            if (elBarra) {
+                elBarra.style.width      = `${pct}%`;
+                elBarra.style.background = color;
+            }
+
+            // Notificación cuando llega al 100% (una sola vez por reserva)
+            if (pct >= 100 && !yaNotificadas.has(reserva.id_reserva)) {
+                yaNotificadas.add(reserva.id_reserva);
+                notificarCargaCompleta(reserva);
+                // Actualizamos el historial para reflejar el estado Finalizada
+                actualizarHistorialUI();
+            }
+        });
+    }, 1000);
+}

@@ -1,18 +1,12 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Encuentra tu Cargador</title>
+    <title>Panel Técnico</title>
 
     <link rel="stylesheet" href="../css/styles.css" />
-    <link
-        rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-        crossorigin=""
-    />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body class="body-panel">
     <header>
@@ -28,17 +22,7 @@
         <section id="busqueda">
             <div class="filtro-contenedor">
                 <h2>Buscar Cargadores</h2>
-                <div id="buscador">
-                    <form id="barraDeBusqueda">
-                        <input tabindex="1" id="inputBusqueda" type="text" placeholder="Ciudad, calle, número..." required />
-                        <button tabindex="2" id="botonBusqueda" title="Busqueda" type="submit">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="9" cy="9" r="8"></circle>
-                                <path d="m22 21-7.5-7.5"></path>
-                            </svg>
-                        </button>
-                    </form>
-                </div>
+
                 <select id="filtroTipo">
                     <option value="">-- Todos los tipos --</option>
                     <option value="Rápido">Rápido</option>
@@ -50,43 +34,45 @@
             <div id="mapa"></div>
         </section>
 
-        <section id="historial" style="max-width: 800px; margin: 40px auto;">
-            <h2>Mi Historial de Reservas</h2>
-            <ul id="listaHistorial" style="list-style: none; text-align: left;"></ul>
+        <section id="reportes" style="max-width: 900px; margin: 40px auto;">
+            <h2>Historial de Reportes</h2>
+            <ul id="listaReportes" style="list-style: none; text-align: left;"></ul>
         </section>
     </main>
 
     <div id="modalDetalles">
         <div class="modal-content">
             <span id="cerrarModal">&times;</span>
-            <h2 id="modalTitulo" style="color: #2c3e50;">Detalles</h2>
+            <h2 style="color: #2c3e50;">Detalles</h2>
             <hr>
             <div id="modalContenido" style="margin: 20px 0; text-align: left;"></div>
-            <button id="btnReservarModal">Reservar Ahora</button>
-            <button id="btnCambiarEstado">Cambiar Estado</button>
+
+            <label for="estadoSelector"><strong>Nuevo estado:</strong></label>
+            <select id="estadoSelector" style="width:100%; padding:8px; margin:10px 0;">
+                <option value="Libre">Libre</option>
+                <option value="Ocupado">Ocupado</option>
+                <option value="En reparación">En reparación</option>
+                <option value="Operativo">Operativo</option>
+            </select>
+
+            <button id="btnCambiarEstado">Guardar estado</button>
         </div>
     </div>
 
-    <script
-        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-        crossorigin=""
-    ></script>
-    <script type="module" src="../js/main.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module" src="../js/tecnico.js"></script>
-    <!--
-    <script>
-        const tecnico = JSON.parse(localStorage.getItem("tecnicoLogueado"));
 
-        if (!tecnico || tecnico.rol !== "tecnico") {
-            window.location.href = "index.html";
+    <script>
+        const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
+
+        if (!usuario || usuario.rol !== "tecnico") {
+            window.location.href = "/html/index.html";
         }
 
         document.getElementById("logoutBtn").onclick = () => {
-            localStorage.removeItem("tecnicoLogueado");
-            window.location.href = "index.html";
+            localStorage.removeItem("usuarioLogueado");
+            window.location.href = "/html/index.html";
         };
     </script>
-    -->
 </body>
 </html>

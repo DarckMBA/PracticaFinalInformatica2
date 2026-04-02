@@ -1,65 +1,45 @@
-document.getElementById("loginForm").addEventListener("submit", function (e) {
+document.getElementById("loginForm").addEventListener("submit", async function (e) {
   e.preventDefault();
 
-  const email = document.getElementById("Email").value;
-  const password = document.getElementById("password").value;
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value.trim();
   const mensaje = document.getElementById("mensaje");
 
-  //CONTRASEÑA Y EMAIL DE ADMIN
-  const emailadmin = "admin@gmail.com";
-  const passwordadmin = "1234";
-  //CONTRASEÑA Y EMAIL DE TÉCNICO
-  const emailtecnico = "tecnico@gmail.com";
-  const passwordtecnico = "1234";
-  //CONTRASEÑA Y EMAIL DE USUARIO
-  const emailusuario = "usuario@gmail.com";
-  const passwordusuario = "1234";
+  try {
+    const respuesta = await fetch("http://localhost:3000/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email, password })
+    });
 
-  //LOGIN DE ADMIN
-  if (email === emailadmin && password === passwordadmin) {
-    localStorage.setItem("usuarioLogueado", JSON.stringify({
-      email: emailadmin,
-      rol: "admin"
-    }));
+    const data = await respuesta.json();
 
-    mensaje.style.color = "green";
-    mensaje.textContent = "Login correcto";
+    if (!respuesta.ok) {
+      mensaje.style.color = "red";
+      mensaje.textContent = data.error;
+      return;
+    }
 
-    setTimeout(() => {
-      window.location.href = "admin.html";
-    }, 1000);
-
-  //LOGIN DE TÉCNICO
-  } else if (email === emailtecnico && password === passwordtecnico) {
-    localStorage.setItem("usuarioLogueado", JSON.stringify({
-      email: emailtecnico,
-      rol: "tecnico"
-    }));
+    localStorage.setItem("usuarioLogueado", JSON.stringify(data.usuario));
 
     mensaje.style.color = "green";
     mensaje.textContent = "Login correcto";
 
     setTimeout(() => {
-      window.location.href = "tecnico.html";
+      if (data.usuario.rol === "admin") {
+        window.location.href = "/html/admin.html";
+      } else if (data.usuario.rol === "tecnico") {
+        window.location.href = "/html/tecnico.html";
+      } else {
+        window.location.href = "/html/usuario.html";
+      }
     }, 1000);
 
-  //LOGIN DE USUARIO
-  } else if (email === emailusuario && password === passwordusuario) {
-    localStorage.setItem("usuarioLogueado", JSON.stringify({
-      email: emailusuario,
-      rol: "usuario"
-    }));
-
-    mensaje.style.color = "green";
-    mensaje.textContent = "Login correcto";
-
-    setTimeout(() => {
-      window.location.href = "usuario.html";
-    }, 1000);
-
-  //LOGIN FALLIDO
-  } else {
+  } catch (error) {
+    console.log(error);
     mensaje.style.color = "red";
-    mensaje.textContent = "Correo o contraseña incorrectos";
+    mensaje.textContent = "No se pudo conectar con el servidor";
   }
 });

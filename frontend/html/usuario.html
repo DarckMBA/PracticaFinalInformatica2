@@ -24,17 +24,6 @@
         <section id="busqueda">
             <div class="filtro-contenedor">
                 <h2>Buscar Cargadores</h2>
-                <div id="buscador">
-                    <form id="barraDeBusqueda">
-                        <input tabindex="1" id="inputBusqueda" type="text" placeholder="Ciudad, calle, número..." required />
-                        <button tabindex="2" id="botonBusqueda" title="Busqueda" type="submit">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="9" cy="9" r="8"></circle>
-                                <path d="m22 21-7.5-7.5"></path>
-                            </svg>
-                        </button>
-                    </form>
-                </div>
                 <select id="filtroTipo">
                     <option value="">-- Todos los tipos --</option>
                     <option value="Rápido">Rápido</option>
@@ -61,20 +50,34 @@
             <button id="btnReservarModal">Reservar Ahora</button>
         </div>
     </div>
+    <section id="incidencias" style="max-width: 800px; margin: 40px auto;">
+    <h2>Reportar incidencia</h2>
+
+    <div class="form-group">
+        <label for="incidenciaCargador">ID del cargador</label>
+        <input type="number" id="incidenciaCargador" placeholder="Ejemplo: 3">
+    </div>
+
+    <div class="form-group">
+        <label for="incidenciaDescripcion">Descripción</label>
+        <textarea id="incidenciaDescripcion" rows="4" placeholder="Describe el problema"></textarea>
+    </div>
+
+    <button id="btnCrearIncidencia">Enviar incidencia</button>
+</section>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script type="module" src="../js/main.js"></script>
     <script type="module" src="../js/usuario.js"></script>
     <script>
         const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
 
         if (!usuario || usuario.rol !== "usuario") {
-            window.location.href = "index.html";
+            window.location.href = "/html/index.html";
         }
 
         document.getElementById("logoutBtn").onclick = () => {
             localStorage.removeItem("usuarioLogueado");
-            window.location.href = "index.html";
+            window.location.href = "/html/index.html";
         };
     </script>
     
