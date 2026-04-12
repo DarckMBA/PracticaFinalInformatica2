@@ -152,6 +152,7 @@ function renderTablaUsuarios(usuarios, pagina) {
     if (paginados.length === 0) { lista.innerHTML = "<p>Sin usuarios.</p>"; return; }
 
     lista.innerHTML = `
+        <div class="table-wrapper">
         <table>
             <thead>
                 <tr>
@@ -182,6 +183,7 @@ function renderTablaUsuarios(usuarios, pagina) {
                 `).join("")}
             </tbody>
         </table>
+        </div>
         <div id="paginacionUsuarios"></div>
     `;
 
@@ -208,6 +210,7 @@ function renderTablaReservas(reservas, pagina) {
     if (paginados.length === 0) { lista.innerHTML = "<p>Sin reservas.</p>"; return; }
 
     lista.innerHTML = `
+        <div class="table-wrapper">
         <table>
             <thead>
                 <tr>
@@ -242,6 +245,7 @@ function renderTablaReservas(reservas, pagina) {
                 }).join("")}
             </tbody>
         </table>
+        </div>
         <div id="paginacionReservas"></div>
     `;
 
@@ -267,6 +271,7 @@ function renderTablaIncidencias(incidencias, pagina) {
     if (paginados.length === 0) { lista.innerHTML = "<p>Sin incidencias.</p>"; return; }
 
     lista.innerHTML = `
+        <div class="table-wrapper">
         <table>
             <thead>
                 <tr>
@@ -296,6 +301,7 @@ function renderTablaIncidencias(incidencias, pagina) {
                 `).join("")}
             </tbody>
         </table>
+        </div>
         <div id="paginacionIncidencias"></div>
     `;
 

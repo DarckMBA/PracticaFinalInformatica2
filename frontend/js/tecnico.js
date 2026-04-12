@@ -96,6 +96,7 @@ function renderPendientes(incidencias, pagina) {
     }
 
     lista.innerHTML = `
+        <div class="table-wrapper">
         <table>
             <thead>
                 <tr>
@@ -138,6 +139,7 @@ function renderPendientes(incidencias, pagina) {
                 `).join("")}
             </tbody>
         </table>
+        </div>
         <div id="pagPendientes"></div>
     `;
 
@@ -163,6 +165,7 @@ function renderResueltas(incidencias, pagina) {
     }
 
     lista.innerHTML = `
+        <div class="table-wrapper">
         <table>
             <thead>
                 <tr>
@@ -193,6 +196,7 @@ function renderResueltas(incidencias, pagina) {
                 `).join("")}
             </tbody>
         </table>
+        </div>
         <div id="pagResueltas"></div>
     `;
 
