@@ -1,384 +1,411 @@
-import { initMap, pintarCargadores, getMap } from './mapa.js';
+/**
+ * admin.js — Panel de Administrador
+ * Mejoras:
+ *  - Paginación en tablas (10 filas/página)
+ *  - Tiempo relativo en reservas ("hace 2 días", "En proceso")
+ *  - Separación clara entre lógica de datos (API) y lógica de UI (render)
+ *  - Sin lógica de negocio en la capa de vista
+ */
 
-let cargadores = [];
-let cargadorSeleccionadoId = null;
-let mapaInicializado = false;
+import { initMap, pintarCargadores } from './mapa.js';
 
-document.addEventListener('DOMContentLoaded', () => {
-    configurarNavegacion();
-    cargarUsuarios();
-    cargarIncidencias();
-    cargarCargadores();
-    cargarReservas();
+// ─── ESTADO GLOBAL ────────────────────────────────────────────────────────────
 
-    setInterval(() => {
-        cargarUsuarios();
-        cargarIncidencias();
-        cargarCargadores();
-        cargarReservas();
-    }, 60000);
+const state = {
+    cargadores: [],
+    cargadorSeleccionadoId: null,
+    mapaInicializado: false,
+    paginaReservas: 1,
+    paginaUsuarios: 1,
+    paginaIncidencias: 1,
+    FILAS_POR_PAGINA: 8
+};
 
-    document.querySelector('.btnCrearUsuario')?.addEventListener('click', crearUsuarioDesdeUI);
-    document.querySelector('.btnCrearCargador')?.addEventListener('click', crearCargadorDesdeUI);
+// ─── UTILIDADES DE TIEMPO ─────────────────────────────────────────────────────
 
-    document.getElementById("cerrarModal").onclick = () => {
-        document.getElementById("modalDetalles").style.display = "none";
-    };
+/**
+ * Devuelve una cadena en formato relativo.
+ * Ej: "hace 2 días", "hace 3 horas", "hace 5 min"
+ */
+function tiempoRelativo(fecha) {
+    const diff = Date.now() - new Date(fecha).getTime();
+    const min  = Math.floor(diff / 60000);
+    const h    = Math.floor(diff / 3600000);
+    const d    = Math.floor(diff / 86400000);
 
-    document.getElementById("btnCambiarEstado").onclick = async () => {
-        let estado = document.getElementById("estadoSelector").value;
-
-        if (!cargadorSeleccionadoId) {
-            alert("Selecciona un cargador.");
-            return;
-        }
-
-        if (estado === "Operativo") {
-            estado = "Libre";
-        }
-
-        try {
-            const res = await fetch(`http://localhost:3000/cargadores/${cargadorSeleccionadoId}/estado`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ estado })
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                alert(data.error || "No se pudo actualizar el estado.");
-                return;
-            }
-
-            const cargador = cargadores.find(c => c.id === cargadorSeleccionadoId);
-            if (cargador) cargador.estado = estado;
-
-            pintarCargadoresAdmin(cargadores);
-            seleccionarCargador(cargadorSeleccionadoId);
-            cargarIncidencias();
-
-            alert("Estado actualizado correctamente.");
-        } catch (error) {
-            console.log(error);
-            alert("Error de conexión.");
-        }
-    };
-
-    const btnToggleActivoCargador = document.getElementById("btnToggleActivoCargador");
-    if (btnToggleActivoCargador) {
-        btnToggleActivoCargador.onclick = async () => {
-            if (!cargadorSeleccionadoId) {
-                alert("Selecciona un cargador.");
-                return;
-            }
-
-            const cargador = cargadores.find(c => c.id === cargadorSeleccionadoId);
-            if (!cargador) return;
-
-            const url = cargador.activo === 1
-                ? `http://localhost:3000/cargadores/${cargador.id}/desactivar`
-                : `http://localhost:3000/cargadores/${cargador.id}/reactivar`;
-
-            try {
-                const res = await fetch(url, { method: "PATCH" });
-                const data = await res.json();
-
-                if (!res.ok) {
-                    alert(data.error || "No se pudo cambiar la visibilidad del cargador.");
-                    return;
-                }
-
-                cargador.activo = cargador.activo === 1 ? 0 : 1;
-                alert(data.mensaje || "Visibilidad del cargador actualizada.");
-
-                cargarCargadores();
-                document.getElementById("modalDetalles").style.display = "none";
-            } catch (error) {
-                console.log(error);
-                alert("Error de conexión.");
-            }
-        };
-    }
-
-    document.getElementById("listaUsuarios")?.addEventListener("click", async (e) => {
-        const btnBaja = e.target.closest(".btn-baja-usuario");
-        const btnReactivar = e.target.closest(".btn-reactivar-usuario");
-        const btnEditar = e.target.closest(".btn-editar-usuario");
-
-        if (btnBaja) {
-            await darDeBajaUsuario(Number(btnBaja.dataset.id));
-        }
-
-        if (btnReactivar) {
-            await reactivarUsuario(Number(btnReactivar.dataset.id));
-        }
-
-        if (btnEditar) {
-            await editarUsuarioDesdeUI(
-                Number(btnEditar.dataset.id),
-                btnEditar.dataset.nombre,
-                btnEditar.dataset.email,
-                btnEditar.dataset.rol
-            );
-        }
-    });
-
-    const filtroSelect = document.getElementById('filtroTipo');
-    if (filtroSelect) {
-        filtroSelect.addEventListener('change', (e) => {
-            const tipo = e.target.value;
-            const filtrados = tipo ? cargadores.filter(c => c.tipo === tipo) : cargadores;
-            pintarCargadoresAdmin(filtrados);
-        });
-    }
-});
-
-function configurarNavegacion() {
-    const botones = document.querySelectorAll(".navAdminBtn");
-
-    botones.forEach(btn => {
-        btn.addEventListener("click", () => {
-            const seccion = btn.dataset.seccion;
-
-            document.getElementById("seccionUsuarios").style.display = seccion === "usuarios" ? "block" : "none";
-            document.getElementById("seccionCargadores").style.display = seccion === "cargadores" ? "block" : "none";
-            document.getElementById("seccionIncidencias").style.display = seccion === "incidencias" ? "block" : "none";
-            document.getElementById("seccionReservas").style.display = seccion === "reservas" ? "block" : "none";
-
-            if (seccion === "cargadores") {
-                setTimeout(() => {
-                    const mapa = getMap();
-                    if (mapa) mapa.invalidateSize();
-                }, 150);
-            }
-        });
-    });
+    if (min < 1)  return "Ahora mismo";
+    if (min < 60) return `hace ${min} min`;
+    if (h < 24)   return `hace ${h} h`;
+    if (d === 1)  return "hace 1 día";
+    return `hace ${d} días`;
 }
+
+/**
+ * Determina el estado visual de una reserva.
+ */
+function estadoReservaVisual(reserva) {
+    const ahora = Date.now();
+    const fin   = new Date(reserva.fecha_fin).getTime();
+
+    if (reserva.estado === "Cancelada")  return { texto: "Cancelada",  color: "#e74c3c", icono: "✗" };
+    if (reserva.estado === "Finalizada") return { texto: `Completada ${tiempoRelativo(reserva.fecha_fin)}`, color: "#27ae60", icono: "✓" };
+    if (ahora < fin)                     return { texto: "En proceso",  color: "#3498db", icono: "⚡" };
+    return { texto: "Expirada", color: "#e67e22", icono: "⚠" };
+}
+
+// ─── CAPA DE API (sin lógica de UI) ──────────────────────────────────────────
+
+const API = {
+    async getUsuarios()    { const r = await fetch("http://localhost:3000/usuarios");         return r.json(); },
+    async getCargadores()  { const r = await fetch("http://localhost:3000/admin/cargadores"); return r.json(); },
+    async getReservas()    { const r = await fetch("http://localhost:3000/reservas");          return r.json(); },
+    async getIncidencias() { const r = await fetch("http://localhost:3000/incidencias");       return r.json(); },
+
+    async crearUsuario(datos) {
+        const r = await fetch("http://localhost:3000/usuarios", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos)
+        });
+        return r.json();
+    },
+
+    async actualizarUsuario(id, datos) {
+        const r = await fetch(`http://localhost:3000/usuarios/${id}`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos)
+        });
+        return r.json();
+    },
+
+    async darDeBajaUsuario(id) {
+        const r = await fetch(`http://localhost:3000/usuarios/${id}/baja`, { method: "PATCH" });
+        return r.json();
+    },
+
+    async reactivarUsuario(id) {
+        const r = await fetch(`http://localhost:3000/usuarios/${id}/reactivar`, { method: "PATCH" });
+        return r.json();
+    },
+
+    async crearCargador(datos) {
+        const r = await fetch("http://localhost:3000/cargadores", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(datos)
+        });
+        return r.json();
+    },
+
+    async cambiarEstadoCargador(id, estado) {
+        const r = await fetch(`http://localhost:3000/cargadores/${id}/estado`, {
+            method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ estado })
+        });
+        return r.json();
+    },
+
+    async desactivarCargador(id) {
+        const r = await fetch(`http://localhost:3000/cargadores/${id}/desactivar`, { method: "PATCH" });
+        return r.json();
+    },
+
+    async reactivarCargador(id) {
+        const r = await fetch(`http://localhost:3000/cargadores/${id}/reactivar`, { method: "PATCH" });
+        return r.json();
+    }
+};
+
+// ─── PAGINACIÓN ───────────────────────────────────────────────────────────────
+
+function paginar(datos, pagina) {
+    const inicio = (pagina - 1) * state.FILAS_POR_PAGINA;
+    return datos.slice(inicio, inicio + state.FILAS_POR_PAGINA);
+}
+
+function renderPaginacion(contenedorId, total, paginaActual, onCambio) {
+    const totalPaginas = Math.ceil(total / state.FILAS_POR_PAGINA);
+    if (totalPaginas <= 1) { document.getElementById(contenedorId).innerHTML = ""; return; }
+
+    const contenedor = document.getElementById(contenedorId);
+    contenedor.innerHTML = `
+        <div class="paginacion">
+            <button ${paginaActual === 1 ? "disabled" : ""} onclick="(${onCambio})(${paginaActual - 1})">‹ Anterior</button>
+            <span>Página ${paginaActual} de ${totalPaginas}</span>
+            <button ${paginaActual === totalPaginas ? "disabled" : ""} onclick="(${onCambio})(${paginaActual + 1})">Siguiente ›</button>
+        </div>
+    `;
+}
+
+// ─── RENDER USUARIOS ──────────────────────────────────────────────────────────
 
 async function cargarUsuarios() {
-    const lista = document.getElementById('listaUsuarios');
-    if (!lista) return;
+    const usuarios = await API.getUsuarios();
+    renderTablaUsuarios(usuarios, state.paginaUsuarios);
+}
 
+function renderTablaUsuarios(usuarios, pagina) {
+    state.paginaUsuarios = pagina;
+    const lista = document.getElementById("listaUsuarios");
+    const paginados = paginar(usuarios, pagina);
+
+    if (paginados.length === 0) { lista.innerHTML = "<p>Sin usuarios.</p>"; return; }
+
+    lista.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Nombre</th>
+                    <th>Email</th>
+                    <th>Rol</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${paginados.map(u => `
+                    <tr>
+                        <td>${u.id_usuario}</td>
+                        <td>${u.nombre}</td>
+                        <td>${u.email}</td>
+                        <td><span class="badge badge-rol">${u.rol}</span></td>
+                        <td><span class="badge ${u.activo ? 'badge-activo' : 'badge-inactivo'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
+                        <td class="acciones-td">
+                            <button class="btn btn-azul btn-sm" onclick="abrirDialogoEditar(${u.id_usuario})">Editar</button>
+                            ${u.activo
+                                ? `<button class="btn btn-rojo btn-sm" onclick="confirmarBaja(${u.id_usuario})">Baja</button>`
+                                : `<button class="btn btn-verde btn-sm" onclick="reactivarUsuario(${u.id_usuario})">Activar</button>`
+                            }
+                        </td>
+                    </tr>
+                `).join("")}
+            </tbody>
+        </table>
+        <div id="paginacionUsuarios"></div>
+    `;
+
+    renderPaginacion("paginacionUsuarios", usuarios.length, pagina,
+        `(p) => { window._usuariosCache = window._usuariosCache || []; renderTablaUsuarios(window._usuariosCache, p); }`
+    );
+
+    // Guardar caché para paginación
+    window._usuariosCache = usuarios;
+}
+
+// ─── RENDER RESERVAS ──────────────────────────────────────────────────────────
+
+async function cargarReservas() {
+    const reservas = await API.getReservas();
+    renderTablaReservas(reservas, state.paginaReservas);
+}
+
+function renderTablaReservas(reservas, pagina) {
+    state.paginaReservas = pagina;
+    const lista = document.getElementById("listaReservas");
+    const paginados = paginar(reservas, pagina);
+
+    if (paginados.length === 0) { lista.innerHTML = "<p>Sin reservas.</p>"; return; }
+
+    lista.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Usuario</th>
+                    <th>Cargador</th>
+                    <th>Tipo</th>
+                    <th>Iniciada</th>
+                    <th>Estado</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${paginados.map(r => {
+                    const visual = estadoReservaVisual(r);
+                    return `
+                        <tr>
+                            <td>${r.id_reserva}</td>
+                            <td>
+                                <strong>${r.nombre_usuario}</strong><br>
+                                <small style="color:#888">${r.email_usuario}</small>
+                            </td>
+                            <td>#${r.id_cargador}</td>
+                            <td>${r.tipo}</td>
+                            <td title="${new Date(r.fecha_inicio).toLocaleString()}">${tiempoRelativo(r.fecha_inicio)}</td>
+                            <td>
+                                <span class="badge-estado" style="color:${visual.color}; font-weight:bold;">
+                                    ${visual.icono} ${visual.texto}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                }).join("")}
+            </tbody>
+        </table>
+        <div id="paginacionReservas"></div>
+    `;
+
+    renderPaginacion("paginacionReservas", reservas.length, pagina,
+        `(p) => { renderTablaReservas(window._reservasCache || [], p); }`
+    );
+
+    window._reservasCache = reservas;
+}
+
+// ─── RENDER INCIDENCIAS ───────────────────────────────────────────────────────
+
+async function cargarIncidencias() {
+    const incidencias = await API.getIncidencias();
+    renderTablaIncidencias(incidencias, state.paginaIncidencias);
+}
+
+function renderTablaIncidencias(incidencias, pagina) {
+    state.paginaIncidencias = pagina;
+    const lista = document.getElementById("listaIncidencias");
+    const paginados = paginar(incidencias, pagina);
+
+    if (paginados.length === 0) { lista.innerHTML = "<p>Sin incidencias.</p>"; return; }
+
+    lista.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Cargador</th>
+                    <th>Descripción</th>
+                    <th>Reportada</th>
+                    <th>Estado</th>
+                    <th>Comentario técnico</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${paginados.map(i => `
+                    <tr>
+                        <td>${i.id_incidencia}</td>
+                        <td>#${i.id_cargador} <small>(${i.tipo_cargador || ""})</small></td>
+                        <td>${i.descripcion}</td>
+                        <td title="${new Date(i.fecha_reporte).toLocaleString()}">${tiempoRelativo(i.fecha_reporte)}</td>
+                        <td>
+                            <span class="${i.estado === 'Resuelta' ? 'estado-resuelta' :
+                                          i.estado === 'Pendiente' ? 'estado-ocupado' : 'estado-reparacion'}">
+                                ${i.estado}
+                            </span>
+                        </td>
+                        <td>${i.comentario_tecnico || '<em style="color:#aaa">—</em>'}</td>
+                    </tr>
+                `).join("")}
+            </tbody>
+        </table>
+        <div id="paginacionIncidencias"></div>
+    `;
+
+    renderPaginacion("paginacionIncidencias", incidencias.length, pagina,
+        `(p) => { renderTablaIncidencias(window._incidenciasCache || [], p); }`
+    );
+
+    window._incidenciasCache = incidencias;
+}
+
+// ─── RENDER CARGADORES (MAPA) ─────────────────────────────────────────────────
+
+async function cargarCargadoresAdmin() {
     try {
-        const res = await fetch('http://localhost:3000/usuarios');
-        const usuarios = await res.json();
+        const data = await API.getCargadores();
+        state.cargadores = data.map(c => ({
+            id: c.id_cargador, lat: Number(c.latitud), lng: Number(c.longitud),
+            tipo: c.tipo, estado: c.estado, nivelCarga: c.nivel_carga, activo: c.activo
+        }));
 
-        if (!res.ok) {
-            lista.innerHTML = '<li>Error al cargar usuarios.</li>';
-            return;
+        if (!state.mapaInicializado) {
+            navigator.geolocation.getCurrentPosition(
+                ({ coords }) => { initMap(coords.latitude, coords.longitude); pintarCargadores(state.cargadores); state.mapaInicializado = true; },
+                ()           => { initMap(40.4168, -3.7038);                  pintarCargadores(state.cargadores); state.mapaInicializado = true; }
+            );
+        } else {
+            pintarCargadores(state.cargadores);
         }
-
-        if (!Array.isArray(usuarios) || usuarios.length === 0) {
-            lista.innerHTML = "<li>No hay usuarios registrados.</li>";
-            return;
-        }
-
-        lista.innerHTML = usuarios.map((usuario) => {
-            const activo = Number(usuario.activo) === 1;
-            const color = activo ? 'green' : 'red';
-            const estado = activo ? 'Activo' : 'Inactivo';
-
-            return `
-                <li style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:10px;">
-                    <div>
-                        <strong>#${usuario.id_usuario} - ${usuario.nombre}</strong><br>
-                        <small>Email: ${usuario.email}</small><br>
-                        <small>Rol: ${usuario.rol}</small><br>
-                        <small>Estado: <span style="color:${color}; font-weight:bold;">${estado}</span></small>
-                    </div>
-                    <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
-                        <button 
-                            class="btn-editar-usuario btn-cancelar" 
-                            data-id="${usuario.id_usuario}"
-                            data-nombre="${usuario.nombre}"
-                            data-email="${usuario.email}"
-                            data-rol="${usuario.rol}"
-                            style="background:#1f6feb;"
-                        >
-                            Editar
-                        </button>
-
-                        ${activo ? `<button class="btn-baja-usuario btn-cancelar" data-id="${usuario.id_usuario}">Desactivar</button>` : ""}
-                        ${!activo ? `<button class="btn-reactivar-usuario btn-cancelar" data-id="${usuario.id_usuario}" style="background:#2e8b57;">Reactivar</button>` : ""}
-                    </div>
-                </li>
-            `;
-        }).join('');
     } catch {
-        lista.innerHTML = '<li>Error de conexión al cargar los usuarios.</li>';
+        alert("Error al cargar cargadores.");
     }
 }
 
-async function crearUsuarioDesdeUI() {
-    const nombre = prompt('Nombre del nuevo usuario:');
-    if (!nombre) return;
+// ─── ACCIONES USUARIOS ────────────────────────────────────────────────────────
 
-    const email = prompt('Email del nuevo usuario:');
-    if (!email) return;
+window.abrirDialogoEditar = function(idUsuario) {
+    // Buscar en caché o re-cargar
+    const usuarios = window._usuariosCache || [];
+    const u = usuarios.find(x => x.id_usuario === idUsuario);
+    if (!u) return;
 
-    const password = prompt('Contraseña del nuevo usuario:');
-    if (!password) return;
+    // Crear diálogo de edición
+    const overlay = document.createElement("div");
+    overlay.className = "admin-dialog-overlay";
+    overlay.innerHTML = `
+        <div class="admin-dialog">
+            <h3 class="admin-dialog-title">Editar usuario #${u.id_usuario}</h3>
+            <div class="form-group"><label>Nombre</label><input id="dNombre" value="${u.nombre}"></div>
+            <div class="form-group"><label>Email</label><input id="dEmail" value="${u.email}"></div>
+            <div class="form-group">
+                <label>Rol</label>
+                <select id="dRol" class="admin-dialog-select">
+                    <option ${u.rol==='usuario'  ? 'selected':''} value="usuario">Usuario</option>
+                    <option ${u.rol==='tecnico'  ? 'selected':''} value="tecnico">Técnico</option>
+                    <option ${u.rol==='admin'    ? 'selected':''} value="admin">Admin</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Nueva contraseña (dejar vacío para no cambiar)</label><input type="password" id="dPassword" placeholder="••••••"></div>
+            <div class="admin-dialog-actions">
+                <button class="btn btn-azul admin-dialog-btn" id="dGuardar">Guardar</button>
+                <button class="btn admin-dialog-btn admin-dialog-btn-cancel" id="dCancelar">Cancelar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
 
-    const rolInput = prompt('Rol (usuario, tecnico, admin):', 'usuario');
-    if (!rolInput) return;
-
-    const rol = rolInput.trim().toLowerCase();
-    if (!['usuario', 'tecnico', 'admin'].includes(rol)) {
-        alert('Rol no válido.');
-        return;
-    }
-
-    try {
-        const res = await fetch('http://localhost:3000/usuarios', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre: nombre.trim(), email: email.trim(), password, rol })
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-            alert(data.error || 'No se pudo crear el usuario.');
-            return;
-        }
-
-        alert('Usuario creado correctamente.');
+    overlay.querySelector("#dCancelar").onclick = () => overlay.remove();
+    overlay.querySelector("#dGuardar").onclick = async () => {
+        const datos = {
+            nombre:   overlay.querySelector("#dNombre").value.trim(),
+            email:    overlay.querySelector("#dEmail").value.trim(),
+            rol:      overlay.querySelector("#dRol").value,
+            password: overlay.querySelector("#dPassword").value
+        };
+        const res = await API.actualizarUsuario(u.id_usuario, datos);
+        if (res.error) { alert(res.error); return; }
+        alert("Usuario actualizado correctamente.");
+        overlay.remove();
         cargarUsuarios();
-    } catch {
-        alert('Error de conexión al crear usuario.');
-    }
-}
+    };
+};
 
-async function editarUsuarioDesdeUI(idUsuario, nombreActual, emailActual, rolActual) {
-    const nombre = prompt('Nuevo nombre:', nombreActual);
-    if (nombre === null) return;
-
-    const email = prompt('Nuevo email:', emailActual);
-    if (email === null) return;
-
-    const rolInput = prompt('Nuevo rol (usuario, tecnico, admin):', rolActual);
-    if (rolInput === null) return;
-
-    const rol = rolInput.trim().toLowerCase();
-    if (!['usuario', 'tecnico', 'admin'].includes(rol)) {
-        alert('Rol no válido.');
-        return;
-    }
-
-    const password = prompt('Nueva contraseña (deja vacío para no cambiarla):', '');
-
-    try {
-        const res = await fetch(`http://localhost:3000/usuarios/${idUsuario}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                nombre: nombre.trim(),
-                email: email.trim(),
-                rol,
-                password: password === null ? "" : password
-            })
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-            alert(data.error || 'No se pudo actualizar el usuario.');
-            return;
-        }
-
-        alert('Usuario actualizado correctamente.');
+window.confirmarBaja = function(idUsuario) {
+    const overlay = document.createElement("div");
+    overlay.className = "admin-dialog-overlay";
+    overlay.innerHTML = `
+        <div class="admin-dialog">
+            <h3 class="admin-dialog-title">¿Dar de baja usuario #${idUsuario}?</h3>
+            <p class="admin-dialog-text">El usuario no podrá iniciar sesión hasta que sea reactivado.</p>
+            <div class="admin-dialog-actions">
+                <button class="btn btn-rojo admin-dialog-btn" id="dConfirmar">Dar de baja</button>
+                <button class="btn admin-dialog-btn admin-dialog-btn-cancel" id="dCancelar">Cancelar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector("#dCancelar").onclick = () => overlay.remove();
+    overlay.querySelector("#dConfirmar").onclick = async () => {
+        const res = await API.darDeBajaUsuario(idUsuario);
+        if (res.error) { alert(res.error); return; }
+        overlay.remove();
         cargarUsuarios();
-    } catch {
-        alert('Error de conexión al actualizar usuario.');
-    }
-}
+    };
+};
 
-async function darDeBajaUsuario(idUsuario) {
-    if (!confirm(`¿Seguro que quieres desactivar al usuario #${idUsuario}?`)) return;
+window.reactivarUsuario = async function(idUsuario) {
+    const res = await API.reactivarUsuario(idUsuario);
+    if (res.error) { alert(res.error); return; }
+    cargarUsuarios();
+};
 
-    try {
-        const res = await fetch(`http://localhost:3000/usuarios/${idUsuario}/baja`, {
-            method: 'PATCH'
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-            alert(data.error || 'No se pudo desactivar el usuario.');
-            return;
-        }
-
-        alert('Usuario desactivado correctamente.');
-        cargarUsuarios();
-    } catch {
-        alert('Error de conexión al desactivar usuario.');
-    }
-}
-
-async function reactivarUsuario(idUsuario) {
-    if (!confirm(`¿Seguro que quieres reactivar al usuario #${idUsuario}?`)) return;
-
-    try {
-        const res = await fetch(`http://localhost:3000/usuarios/${idUsuario}/reactivar`, {
-            method: 'PATCH'
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-            alert(data.error || 'No se pudo reactivar el usuario.');
-            return;
-        }
-
-        alert('Usuario reactivado correctamente.');
-        cargarUsuarios();
-    } catch {
-        alert('Error de conexión al reactivar usuario.');
-    }
-}
-
-function cargarCargadores() {
-    fetch("http://localhost:3000/admin/cargadores")
-        .then(res => res.json())
-        .then(data => {
-            cargadores = data.map(c => ({
-                id: c.id_cargador,
-                lat: Number(c.latitud),
-                lng: Number(c.longitud),
-                tipo: c.tipo,
-                estado: c.estado,
-                nivelCarga: c.nivel_carga,
-                activo: Number(c.activo)
-            }));
-
-            if (!mapaInicializado) {
-                navigator.geolocation.getCurrentPosition(
-                    ({ coords }) => {
-                        initMap(coords.latitude, coords.longitude);
-                        pintarCargadoresAdmin(cargadores);
-                        mapaInicializado = true;
-                    },
-                    () => {
-                        initMap(40.4168, -3.7038);
-                        pintarCargadoresAdmin(cargadores);
-                        mapaInicializado = true;
-                    }
-                );
-            } else {
-                pintarCargadoresAdmin(cargadores);
-            }
-        })
-        .catch(error => {
-            console.log(error);
-        });
-}
-
-function pintarCargadoresAdmin(lista) {
-    pintarCargadores(lista);
-    window.seleccionarCargador = seleccionarCargador;
-}
+// ─── ACCIONES CARGADORES ──────────────────────────────────────────────────────
 
 function seleccionarCargador(id) {
-    cargadorSeleccionadoId = id;
-    const c = cargadores.find(item => item.id === id);
-
+    state.cargadorSeleccionadoId = id;
+    const c = state.cargadores.find(x => x.id === id);
     if (!c) return;
 
     document.getElementById("modalContenido").innerHTML = `
@@ -386,141 +413,176 @@ function seleccionarCargador(id) {
         <p><strong>Tipo:</strong> ${c.tipo}</p>
         <p><strong>Estado actual:</strong> ${c.estado}</p>
         <p><strong>Carga:</strong> ${c.nivelCarga}%</p>
-        <p><strong>Visible:</strong> ${c.activo === 1 ? "Sí" : "No"}</p>
+        <p><strong>Visibilidad:</strong> ${c.activo ? "Activo" : "Inactivo"}</p>
     `;
 
     document.getElementById("estadoSelector").value = c.estado;
-
     const btnToggle = document.getElementById("btnToggleActivoCargador");
-    if (btnToggle) {
-        btnToggle.textContent = c.activo === 1 ? "Desactivar cargador" : "Reactivar cargador";
-    }
+    btnToggle.textContent = c.activo ? "Desactivar cargador" : "Activar cargador";
+    btnToggle.style.backgroundColor = c.activo ? "#e67e22" : "#27ae60";
 
     document.getElementById("modalDetalles").style.display = "flex";
 }
 
-async function crearCargadorDesdeUI() {
-    const tipo = prompt("Tipo de cargador (Rápido, Estándar, Compatible):", "Rápido");
-    if (!tipo) return;
+// ─── SECCIÓN ACTIVA (NAVEGACIÓN) ──────────────────────────────────────────────
 
-    let estado = prompt("Estado inicial (Libre, Ocupado, En reparación):", "Libre");
-    if (!estado) return;
+function mostrarSeccion(nombre) {
+    const secciones = { usuarios: "seccionUsuarios", cargadores: "seccionCargadores", incidencias: "seccionIncidencias", reservas: "seccionReservas" };
+    Object.values(secciones).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
+    });
 
-    if (estado === "Operativo") estado = "Libre";
+    const activa = document.getElementById(secciones[nombre]);
+    if (activa) activa.style.display = "block";
 
-    const mapa = getMap();
-    if (!mapa) {
-        alert("El mapa aún no está listo.");
-        return;
-    }
+    // Cargar datos de la sección
+    if (nombre === "usuarios")    cargarUsuarios();
+    if (nombre === "cargadores")  cargarCargadoresAdmin();
+    if (nombre === "incidencias") cargarIncidencias();
+    if (nombre === "reservas")    cargarReservas();
+}
 
-    alert("Haz clic en el mapa para colocar el nuevo cargador.");
+// ─── CREAR CARGADOR ───────────────────────────────────────────────────────────
 
-    const manejadorClick = async (e) => {
-        const latitud = Number(e.latlng.lat.toFixed(6));
-        const longitud = Number(e.latlng.lng.toFixed(6));
+function abrirDialogoCrearCargador() {
+    const overlay = document.createElement("div");
+    overlay.className = "admin-dialog-overlay";
+    overlay.innerHTML = `
+        <div class="admin-dialog">
+            <h3 class="admin-dialog-title">Nuevo cargador</h3>
+            <div class="form-group"><label>Tipo</label>
+                <select id="cTipo" class="admin-dialog-select">
+                    <option value="Rápido">Rápido</option>
+                    <option value="Estándar">Estándar</option>
+                    <option value="Compatible">Compatible</option>
+                </select>
+            </div>
+            <div class="form-group"><label>Latitud</label><input id="cLat" type="number" step="0.0001" placeholder="40.4168"></div>
+            <div class="form-group"><label>Longitud</label><input id="cLng" type="number" step="0.0001" placeholder="-3.7038"></div>
+            <div class="admin-dialog-actions">
+                <button class="btn btn-verde admin-dialog-btn" id="cGuardar">Crear</button>
+                <button class="btn admin-dialog-btn admin-dialog-btn-cancel" id="cCancelar">Cancelar</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    overlay.querySelector("#cCancelar").onclick = () => overlay.remove();
+    overlay.querySelector("#cGuardar").onclick = async () => {
+        const datos = {
+            tipo:     overlay.querySelector("#cTipo").value,
+            latitud:  overlay.querySelector("#cLat").value,
+            longitud: overlay.querySelector("#cLng").value,
+            estado:   "Libre"
+        };
+        if (!datos.latitud || !datos.longitud) { alert("Introduce latitud y longitud."); return; }
+        const res = await API.crearCargador(datos);
+        if (res.error) { alert(res.error); return; }
+        alert("Cargador creado correctamente.");
+        overlay.remove();
+        cargarCargadoresAdmin();
+    };
+}
 
-        try {
-            const res = await fetch("http://localhost:3000/cargadores", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    tipo,
-                    latitud,
-                    longitud,
-                    estado
-                })
-            });
+// ─── INIT ─────────────────────────────────────────────────────────────────────
 
-            const data = await res.json();
+document.addEventListener("DOMContentLoaded", () => {
+    // Navegación inferior
+    document.querySelectorAll(".navAdminBtn").forEach(btn => {
+        btn.addEventListener("click", () => mostrarSeccion(btn.dataset.seccion));
+    });
 
-            if (!res.ok) {
-                alert(data.error || "No se pudo crear el cargador.");
-                return;
-            }
+    // Mostrar sección inicial
+    mostrarSeccion("usuarios");
 
-            alert("Cargador creado correctamente.");
-            cargarCargadores();
-        } catch (error) {
-            console.log(error);
-            alert("Error de conexión al crear cargador.");
-        } finally {
-            mapa.off("click", manejadorClick);
-        }
+    // Crear usuario
+    document.querySelector(".btnCrearUsuario").onclick = () => {
+        const overlay = document.createElement("div");
+        overlay.className = "admin-dialog-overlay";
+        overlay.innerHTML = `
+            <div class="admin-dialog">
+                <h3 class="admin-dialog-title">Nuevo usuario</h3>
+                <div class="form-group"><label>Nombre</label><input id="uNombre" placeholder="Nombre completo"></div>
+                <div class="form-group"><label>Email</label><input id="uEmail" type="email" placeholder="correo@ejemplo.com"></div>
+                <div class="form-group"><label>Contraseña</label><input type="password" id="uPassword" placeholder="Mínimo 6 caracteres"></div>
+                <div class="form-group"><label>Rol</label>
+                    <select id="uRol" class="admin-dialog-select">
+                        <option value="usuario">Usuario</option>
+                        <option value="tecnico">Técnico</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="admin-dialog-actions">
+                    <button class="btn btn-verde admin-dialog-btn" id="uGuardar">Crear</button>
+                    <button class="btn admin-dialog-btn admin-dialog-btn-cancel" id="uCancelar">Cancelar</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.querySelector("#uCancelar").onclick = () => overlay.remove();
+        overlay.querySelector("#uGuardar").onclick = async () => {
+            const datos = {
+                nombre:   overlay.querySelector("#uNombre").value.trim(),
+                email:    overlay.querySelector("#uEmail").value.trim(),
+                password: overlay.querySelector("#uPassword").value,
+                rol:      overlay.querySelector("#uRol").value
+            };
+            if (!datos.nombre || !datos.email || !datos.password) { alert("Rellena todos los campos."); return; }
+            const res = await API.crearUsuario(datos);
+            if (res.error) { alert(res.error); return; }
+            alert("Usuario creado correctamente.");
+            overlay.remove();
+            cargarUsuarios();
+        };
     };
 
-    mapa.on("click", manejadorClick);
-}
+    // Crear cargador
+    document.querySelector(".btnCrearCargador").onclick = abrirDialogoCrearCargador;
 
-async function cargarIncidencias() {
-    const lista = document.getElementById("listaIncidencias");
-    if (!lista) return;
+    // Modal cargador — cerrar
+    document.getElementById("cerrarModal").onclick = () => {
+        document.getElementById("modalDetalles").style.display = "none";
+    };
 
-    try {
-        const res = await fetch("http://localhost:3000/incidencias");
-        const data = await res.json();
+    // Modal cargador — guardar estado
+    document.getElementById("btnCambiarEstado").onclick = async () => {
+        const nuevoEstado = document.getElementById("estadoSelector").value;
+        if (!state.cargadorSeleccionadoId) { alert("Selecciona un cargador."); return; }
 
-        if (!res.ok) {
-            lista.innerHTML = "<li>Error al cargar incidencias.</li>";
-            return;
-        }
+        const res = await API.cambiarEstadoCargador(state.cargadorSeleccionadoId, nuevoEstado);
+        if (res.error) { alert(res.error); return; }
 
-        if (!Array.isArray(data) || data.length === 0) {
-            lista.innerHTML = "<li>Sin incidencias registradas.</li>";
-            return;
-        }
+        const c = state.cargadores.find(x => x.id === state.cargadorSeleccionadoId);
+        if (c) c.estado = nuevoEstado === "Operativo" ? "Libre" : nuevoEstado;
 
-        lista.innerHTML = data.map(inc => `
-            <li style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:10px;">
-                <strong>Incidencia #${inc.id_incidencia}</strong><br>
-                <small>Cargador: #${inc.id_cargador}</small><br>
-                <small>Descripción: ${inc.descripcion}</small><br>
-                <small>Estado: <b>${inc.estado}</b></small><br>
-                <small>Fecha: ${new Date(inc.fecha_reporte).toLocaleString()}</small><br>
-                ${inc.comentario_tecnico ? `<small><b>Comentario técnico:</b> ${inc.comentario_tecnico}</small>` : ""}
-            </li>
-        `).join("");
-    } catch {
-        lista.innerHTML = "<li>Error de conexión al cargar incidencias.</li>";
-    }
-}
+        pintarCargadores(state.cargadores);
+        seleccionarCargador(state.cargadorSeleccionadoId);
+        alert("Estado actualizado correctamente.");
+    };
 
-async function cargarReservas() {
-    const lista = document.getElementById("listaReservas");
-    if (!lista) return;
+    // Modal cargador — toggle activo
+    document.getElementById("btnToggleActivoCargador").onclick = async () => {
+        const c = state.cargadores.find(x => x.id === state.cargadorSeleccionadoId);
+        if (!c) return;
 
-    try {
-        const res = await fetch("http://localhost:3000/reservas");
-        const data = await res.json();
+        const res = c.activo
+            ? await API.desactivarCargador(c.id)
+            : await API.reactivarCargador(c.id);
 
-        if (!res.ok) {
-            lista.innerHTML = "<li>Error al cargar reservas.</li>";
-            return;
-        }
+        if (res.error) { alert(res.error); return; }
+        c.activo = !c.activo;
+        seleccionarCargador(c.id);
+        pintarCargadores(state.cargadores);
+        alert(`Cargador ${c.activo ? "reactivado" : "desactivado"} correctamente.`);
+    };
 
-        if (!Array.isArray(data) || data.length === 0) {
-            lista.innerHTML = "<li>Sin reservas registradas.</li>";
-            return;
-        }
+    // Filtro cargadores
+    document.getElementById("filtroTipo").addEventListener("change", (e) => {
+        const tipo = e.target.value;
+        const filtrados = tipo ? state.cargadores.filter(c => c.tipo === tipo) : state.cargadores;
+        pintarCargadores(filtrados);
+    });
 
-        lista.innerHTML = data.map(reserva => {
-            let colorEstado = "#666";
-            if (reserva.estado === "Activa") colorEstado = "green";
-            if (reserva.estado === "Cancelada") colorEstado = "red";
-            if (reserva.estado === "Finalizada") colorEstado = "blue";
-
-            return `
-                <li style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:10px;">
-                    <strong>Reserva #${reserva.id_reserva}</strong><br>
-                    <small>Usuario: ${reserva.nombre_usuario} (${reserva.email_usuario})</small><br>
-                    <small>Cargador: #${reserva.id_cargador} (${reserva.tipo})</small><br>
-                    <small>Inicio: ${new Date(reserva.fecha_inicio).toLocaleString()}</small><br>
-                    <small>Fin: ${new Date(reserva.fecha_fin).toLocaleString()}</small><br>
-                    <small>Estado: <span style="color:${colorEstado}; font-weight:bold;">${reserva.estado}</span></small>
-                </li>
-            `;
-        }).join("");
-    } catch {
-        lista.innerHTML = "<li>Error de conexión al cargar reservas.</li>";
-    }
-}
+    // Exponer selección de cargador al popup del mapa
+    window.seleccionarCargador = seleccionarCargador;
+});

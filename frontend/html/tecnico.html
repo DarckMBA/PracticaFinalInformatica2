@@ -3,72 +3,45 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Panel Técnico</title>
-
+    <title>Panel Técnico — Encuentra tu Cargador</title>
     <link rel="stylesheet" href="../css/styles.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body class="body-panel">
     <header>
-        <h1 style="text-align: center;">Panel de Técnico</h1>
-        <div style="text-align: right; padding: 10px;">
-            <button id="logoutBtn" style="width: auto; padding: 8px 15px; background-color: #e74c3c;">
-                Cerrar Sesión
-            </button>
-        </div>
+        <h1>Panel de Técnico</h1>
+        <button id="logoutBtn">Cerrar Sesión</button>
     </header>
 
     <main>
-        <section id="busqueda">
-            <div class="filtro-contenedor">
-                <h2>Buscar Cargadores</h2>
-
-                <select id="filtroTipo">
-                    <option value="">-- Todos los tipos --</option>
-                    <option value="Rápido">Rápido</option>
-                    <option value="Estándar">Estándar</option>
-                    <option value="Compatible">Compatible</option>
-                </select>
-            </div>
-
-            <div id="mapa"></div>
+        <!-- INCIDENCIAS PENDIENTES -->
+        <section>
+            <h2>
+                ⚠ Incidencias pendientes
+                <span id="contadorPendientes" style="font-size:0.85em; color:#e74c3c;"></span>
+            </h2>
+            <p style="color:#888; margin-bottom:12px; font-size:0.9em;">
+                Haz clic en <strong>Ver mapa</strong> para abrir la ubicación del cargador en Google Maps.
+                Escribe un comentario técnico y pulsa <strong>Resolver</strong> para cerrar la incidencia.
+            </p>
+            <ul id="listaPendientes" style="list-style:none;"></ul>
         </section>
 
-        <section id="reportes" style="max-width: 900px; margin: 40px auto;">
-            <h2>Historial de Reportes</h2>
-            <ul id="listaReportes" style="list-style: none; text-align: left;"></ul>
+        <!-- INCIDENCIAS RESUELTAS -->
+        <section>
+            <h2>
+                ✓ Incidencias resueltas
+                <span id="contadorResueltas" style="font-size:0.85em; color:#27ae60;"></span>
+            </h2>
+            <ul id="listaResueltas" style="list-style:none;"></ul>
         </section>
     </main>
 
-    <div id="modalDetalles">
-        <div class="modal-content">
-            <span id="cerrarModal">&times;</span>
-            <h2 style="color: #2c3e50;">Detalles</h2>
-            <hr>
-            <div id="modalContenido" style="margin: 20px 0; text-align: left;"></div>
-
-            <label for="estadoSelector"><strong>Nuevo estado:</strong></label>
-            <select id="estadoSelector" style="width:100%; padding:8px; margin:10px 0;">
-                <option value="Libre">Libre</option>
-                <option value="Ocupado">Ocupado</option>
-                <option value="En reparación">En reparación</option>
-                <option value="Operativo">Operativo</option>
-            </select>
-
-            <button id="btnCambiarEstado">Guardar estado</button>
-        </div>
-    </div>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module" src="../js/tecnico.js"></script>
-
     <script>
         const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
-
         if (!usuario || usuario.rol !== "tecnico") {
             window.location.href = "/html/index.html";
         }
-
         document.getElementById("logoutBtn").onclick = () => {
             localStorage.removeItem("usuarioLogueado");
             window.location.href = "/html/index.html";

@@ -1,192 +1,250 @@
-import { initMap, pintarCargadores } from './mapa.js';
+/**
+ * tecnico.js — Panel de Técnico
+ * Mejoras:
+ *  - NO se muestra el mapa por defecto.
+ *  - Dos tablas: Incidencias pendientes y resueltas.
+ *  - Cada incidencia tiene un botón "Ver en mapa" que abre Google Maps.
+ *  - Paginación en ambas tablas.
+ *  - Separación entre capa API y capa UI.
+ */
 
-let cargadores = [];
-let cargadorSeleccionadoId = null;
-let mapaInicializado = false;
+// ─── ESTADO ───────────────────────────────────────────────────────────────────
 
-document.addEventListener('DOMContentLoaded', () => {
-    cargarCargadores();
-    cargarReportes();
+const state = {
+    FILAS_POR_PAGINA: 8,
+    paginaPendientes: 1,
+    paginaResueltas: 1
+};
 
-    const filtroSelect = document.getElementById('filtroTipo');
-    if (filtroSelect) {
-        filtroSelect.addEventListener('change', (e) => {
-            const tipo = e.target.value;
-            const filtrados = tipo ? cargadores.filter(c => c.tipo === tipo) : cargadores;
-            pintarCargadoresTecnico(filtrados);
+// ─── CAPA API ─────────────────────────────────────────────────────────────────
+
+const API = {
+    async getIncidencias() {
+        const r = await fetch("http://localhost:3000/incidencias");
+        if (!r.ok) throw new Error("Error al obtener incidencias");
+        return r.json();
+    },
+
+    async resolverIncidencia(id, comentario) {
+        const r = await fetch(`http://localhost:3000/incidencias/${id}/resolver`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ comentario_tecnico: comentario })
         });
+        return r.json();
+    }
+};
+
+// ─── UTILIDADES ───────────────────────────────────────────────────────────────
+
+function tiempoRelativo(fecha) {
+    const diff = Date.now() - new Date(fecha).getTime();
+    const min  = Math.floor(diff / 60000);
+    const h    = Math.floor(diff / 3600000);
+    const d    = Math.floor(diff / 86400000);
+    if (min < 1)  return "Ahora mismo";
+    if (min < 60) return `hace ${min} min`;
+    if (h < 24)   return `hace ${h} h`;
+    if (d === 1)  return "hace 1 día";
+    return `hace ${d} días`;
+}
+
+function urlGoogleMaps(lat, lng) {
+    return `https://www.google.com/maps?q=${lat},${lng}`;
+}
+
+function paginar(datos, pagina) {
+    const inicio = (pagina - 1) * state.FILAS_POR_PAGINA;
+    return datos.slice(inicio, inicio + state.FILAS_POR_PAGINA);
+}
+
+function renderPaginacion(contenedorId, total, pagina, callback) {
+    const totalPaginas = Math.ceil(total / state.FILAS_POR_PAGINA);
+    const el = document.getElementById(contenedorId);
+    if (!el) return;
+    if (totalPaginas <= 1) { el.innerHTML = ""; return; }
+
+    el.innerHTML = `
+        <div class="paginacion">
+            <button ${pagina === 1 ? "disabled" : ""} onclick="${callback}(${pagina - 1})">‹ Anterior</button>
+            <span>Página ${pagina} de ${totalPaginas}</span>
+            <button ${pagina === totalPaginas ? "disabled" : ""} onclick="${callback}(${pagina + 1})">Siguiente ›</button>
+        </div>
+    `;
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+
+/**
+ * Renderiza la tabla de incidencias pendientes (o en revisión).
+ */
+function renderPendientes(incidencias, pagina) {
+    state.paginaPendientes = pagina;
+    window._pendientesCache = incidencias;
+
+    const lista = document.getElementById("listaPendientes");
+    const paginados = paginar(incidencias, pagina);
+
+    if (incidencias.length === 0) {
+        lista.innerHTML = `<div class="empty-state">✅ No hay incidencias pendientes.</div>`;
+        return;
     }
 
-    document.getElementById("cerrarModal").onclick = () => {
-        document.getElementById("modalDetalles").style.display = "none";
-    };
-
-    document.getElementById("btnCambiarEstado").onclick = async () => {
-        const select = document.getElementById("estadoSelector");
-        let nuevoEstado = select.value;
-
-        if (!cargadorSeleccionadoId) {
-            alert("Selecciona un cargador.");
-            return;
-        }
-
-        if (nuevoEstado === "Operativo") {
-            nuevoEstado = "Libre";
-        }
-
-        try {
-            const res = await fetch(`http://localhost:3000/cargadores/${cargadorSeleccionadoId}/estado`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ estado: nuevoEstado })
-            });
-
-            const data = await res.json();
-
-            if (!res.ok) {
-                alert(data.error || "No se pudo actualizar el estado.");
-                return;
-            }
-
-            const cargador = cargadores.find(c => c.id === cargadorSeleccionadoId);
-            if (cargador) cargador.estado = nuevoEstado;
-
-            pintarCargadoresTecnico(cargadores);
-            seleccionarCargador(cargadorSeleccionadoId);
-            cargarReportes();
-
-            alert("Estado actualizado correctamente.");
-        } catch (error) {
-            alert("Error de conexión.");
-        }
-    };
-});
-
-function cargarCargadores() {
-    fetch("http://localhost:3000/cargadores")
-        .then(res => res.json())
-        .then(data => {
-            cargadores = data.map(c => ({
-                id: c.id_cargador,
-                lat: Number(c.latitud),
-                lng: Number(c.longitud),
-                tipo: c.tipo,
-                estado: c.estado,
-                nivelCarga: c.nivel_carga
-            }));
-
-            if (!mapaInicializado) {
-                navigator.geolocation.getCurrentPosition(
-                    ({ coords }) => {
-                        initMap(coords.latitude, coords.longitude);
-                        pintarCargadoresTecnico(cargadores);
-                        mapaInicializado = true;
-                    },
-                    () => {
-                        initMap(40.4168, -3.7038);
-                        pintarCargadoresTecnico(cargadores);
-                        mapaInicializado = true;
-                    }
-                );
-            } else {
-                pintarCargadoresTecnico(cargadores);
-            }
-        })
-        .catch(() => {
-            alert("Error al cargar cargadores.");
-        });
-}
-
-function pintarCargadoresTecnico(lista) {
-    pintarCargadores(lista);
-    window.seleccionarCargador = seleccionarCargador;
-}
-
-function seleccionarCargador(id) {
-    cargadorSeleccionadoId = id;
-    const c = cargadores.find(item => item.id === id);
-
-    if (!c) return;
-
-    document.getElementById("modalContenido").innerHTML = `
-        <p><strong>ID:</strong> #${c.id}</p>
-        <p><strong>Tipo:</strong> ${c.tipo}</p>
-        <p><strong>Estado actual:</strong> ${c.estado}</p>
-        <p><strong>Carga:</strong> ${c.nivelCarga}%</p>
+    lista.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Cargador</th>
+                    <th>Descripción</th>
+                    <th>Reportada</th>
+                    <th>Estado</th>
+                    <th>Ubicación</th>
+                    <th>Resolver</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${paginados.map(i => `
+                    <tr id="fila-${i.id_incidencia}">
+                        <td>${i.id_incidencia}</td>
+                        <td>#${i.id_cargador} <small>(${i.tipo_cargador || "—"})</small></td>
+                        <td>${i.descripcion}</td>
+                        <td title="${new Date(i.fecha_reporte).toLocaleString()}">${tiempoRelativo(i.fecha_reporte)}</td>
+                        <td><span class="estado-ocupado">${i.estado}</span></td>
+                        <td>
+                            <a href="${urlGoogleMaps(i.latitud, i.longitud)}"
+                               target="_blank"
+                               class="btn btn-azul btn-sm mapa-link">
+                               📍 Ver mapa
+                            </a>
+                        </td>
+                        <td>
+                            <div class="resolver-inline">
+                                <input type="text" id="comentario-${i.id_incidencia}"
+                                       placeholder="Comentario técnico…"
+                                       class="input-comentario">
+                                <button class="btn btn-verde btn-sm"
+                                        onclick="resolverIncidencia(${i.id_incidencia})">
+                                    ✓ Resolver
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join("")}
+            </tbody>
+        </table>
+        <div id="pagPendientes"></div>
     `;
 
-    document.getElementById("estadoSelector").value = c.estado;
-    document.getElementById("modalDetalles").style.display = "flex";
+    renderPaginacion("pagPendientes", incidencias.length, pagina, "cambiarPaginaPendientes");
 }
 
-function cargarReportes() {
-    fetch("http://localhost:3000/incidencias")
-        .then(res => res.json())
-        .then(data => {
-            const lista = document.getElementById("listaReportes");
+/**
+ * Renderiza la tabla de incidencias resueltas.
+ */
+function renderResueltas(incidencias, pagina) {
+    state.paginaResueltas = pagina;
+    window._resueltasCache = incidencias;
 
-            if (!Array.isArray(data) || data.length === 0) {
-                lista.innerHTML = "<li>Sin reportes registrados.</li>";
-                return;
-            }
+    const lista = document.getElementById("listaResueltas");
+    const paginados = paginar(incidencias, pagina);
 
-            lista.innerHTML = data.map(rep => `
-                <li style="background:#f8f9fa; padding:15px; border-radius:8px; margin-bottom:10px;">
-                    <strong>Cargador #${rep.id_cargador}</strong><br>
-                    <small>Descripción: ${rep.descripcion}</small><br>
-                    <small>Estado: <b>${rep.estado}</b></small><br>
-                    <small>Fecha: ${new Date(rep.fecha_reporte).toLocaleString()}</small><br>
-                    ${rep.comentario_tecnico ? `<small><b>Comentario técnico:</b> ${rep.comentario_tecnico}</small><br>` : ""}
+    if (incidencias.length === 0) {
+        lista.innerHTML = `<div class="empty-state">Sin incidencias resueltas aún.</div>`;
+        return;
+    }
 
-                    ${
-                        rep.estado !== "Resuelta"
-                            ? `
-                            <textarea id="comentario-${rep.id_incidencia}" placeholder="Escribe qué se hizo..." style="width:100%; margin-top:10px; padding:8px;"></textarea>
-                            <button onclick="resolverIncidencia(${rep.id_incidencia})" style="margin-top:10px;">
-                                Marcar resuelta
-                            </button>
-                            `
-                            : ""
-                    }
-                </li>
-            `).join("");
-        })
-        .catch(() => {
-            document.getElementById("listaReportes").innerHTML = "<li>Error al cargar reportes.</li>";
-        });
+    lista.innerHTML = `
+        <table>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Cargador</th>
+                    <th>Descripción</th>
+                    <th>Resuelta</th>
+                    <th>Comentario técnico</th>
+                    <th>Ubicación</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${paginados.map(i => `
+                    <tr>
+                        <td>${i.id_incidencia}</td>
+                        <td>#${i.id_cargador} <small>(${i.tipo_cargador || "—"})</small></td>
+                        <td>${i.descripcion}</td>
+                        <td title="${new Date(i.fecha_reporte).toLocaleString()}">${tiempoRelativo(i.fecha_reporte)}</td>
+                        <td>${i.comentario_tecnico || '<em style="color:#aaa">—</em>'}</td>
+                        <td>
+                            <a href="${urlGoogleMaps(i.latitud, i.longitud)}"
+                               target="_blank"
+                               class="btn btn-azul btn-sm mapa-link">
+                               📍 Ver mapa
+                            </a>
+                        </td>
+                    </tr>
+                `).join("")}
+            </tbody>
+        </table>
+        <div id="pagResueltas"></div>
+    `;
+
+    renderPaginacion("pagResueltas", incidencias.length, pagina, "cambiarPaginaResueltas");
 }
+
+// ─── CALLBACKS PAGINACIÓN ─────────────────────────────────────────────────────
+
+window.cambiarPaginaPendientes = (p) => renderPendientes(window._pendientesCache || [], p);
+window.cambiarPaginaResueltas  = (p) => renderResueltas(window._resueltasCache  || [], p);
+
+// ─── ACCIÓN: RESOLVER INCIDENCIA ─────────────────────────────────────────────
 
 window.resolverIncidencia = async function(idIncidencia) {
-    const textarea = document.getElementById(`comentario-${idIncidencia}`);
-    const comentario = textarea ? textarea.value.trim() : "";
+    const input = document.getElementById(`comentario-${idIncidencia}`);
+    const comentario = input ? input.value.trim() : "";
 
-    if (comentario === "") {
+    if (!comentario) {
         alert("Escribe un comentario técnico antes de resolver la incidencia.");
+        input && input.focus();
         return;
     }
 
     try {
-        const res = await fetch(`http://localhost:3000/incidencias/${idIncidencia}/resolver`, {
-            method: "PATCH",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                comentario_tecnico: comentario
-            })
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-            alert(data.error || "No se pudo resolver la incidencia");
-            return;
-        }
-
-        alert("Incidencia resuelta correctamente");
-        cargarReportes();
-        cargarCargadores();
-    } catch (error) {
-        alert("Error de conexión");
+        const data = await API.resolverIncidencia(idIncidencia, comentario);
+        if (data.error) { alert(data.error); return; }
+        alert("✅ Incidencia resuelta correctamente.");
+        await cargarIncidencias(); // Recargar ambas tablas
+    } catch {
+        alert("Error de conexión al resolver la incidencia.");
     }
 };
+
+// ─── CARGA PRINCIPAL ─────────────────────────────────────────────────────────
+
+async function cargarIncidencias() {
+    try {
+        const todas = await API.getIncidencias();
+
+        const pendientes = todas.filter(i => i.estado !== "Resuelta");
+        const resueltas  = todas.filter(i => i.estado === "Resuelta");
+
+        renderPendientes(pendientes, state.paginaPendientes);
+        renderResueltas(resueltas,  state.paginaResueltas);
+
+        // Actualizar contadores en los títulos
+        const elPend = document.getElementById("contadorPendientes");
+        const elRes  = document.getElementById("contadorResueltas");
+        if (elPend) elPend.textContent = `(${pendientes.length})`;
+        if (elRes)  elRes.textContent  = `(${resueltas.length})`;
+
+    } catch (err) {
+        console.error(err);
+        document.getElementById("listaPendientes").innerHTML = "<p>Error al cargar incidencias.</p>";
+        document.getElementById("listaResueltas").innerHTML  = "<p>Error al cargar incidencias.</p>";
+    }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+
+document.addEventListener("DOMContentLoaded", () => {
+    cargarIncidencias();
+});

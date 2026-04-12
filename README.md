@@ -34,11 +34,11 @@ realizar reservas y recibir notificaciones cuando la carga finaliza.
 
 ### 1. Base de datos
 
-1. Iniciar **XAMPP** y arrancar el servicio **MySQL**
+1. Iniciar **XAMPP** y arrancar el servicio **MySQL** y **Apache**
 2. Abrir **phpMyAdmin** en `http://localhost/phpmyadmin`
 3. Crear una base de datos llamada exactamente: `encuentra_tu_cargador`
 4. Seleccionar esa base de datos → pestaña **Importar**
-5. Seleccionar el archivo `database/encuentra_tu_cargador.sql` y pulsar **Continuar**
+5. Seleccionar el archivo `encuentra_tu_cargador.sql` y pulsar **Continuar**
 
 ### 2. Backend
 
@@ -117,3 +117,9 @@ proyecto/
 - Panel de administrador: gestión de usuarios, cargadores, incidencias y reservas
 - Panel de técnico: actualización de estados y resolución de incidencias
 - Sistema de roles con redirección automática según perfil
+
+
+
+
+npm install bcrypt
+node backend/seguridad/middleware/migrate-passwords.js

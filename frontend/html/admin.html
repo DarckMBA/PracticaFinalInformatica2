@@ -3,19 +3,14 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Panel de Administrador</title>
-
+    <title>Panel Administrador — Encuentra tu Cargador</title>
     <link rel="stylesheet" href="../css/styles.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body class="body-panel">
     <header>
-        <h1 style="text-align: center;">Panel de Administrador</h1>
-        <div style="text-align: right; padding: 10px;">
-            <button id="logoutBtn" style="width: auto; padding: 8px 15px; background-color: #e74c3c;">
-                Cerrar Sesión
-            </button>
-        </div>
+        <h1>Panel de Administrador</h1>
+        <button id="logoutBtn">Cerrar Sesión</button>
     </header>
 
     <main>
@@ -24,20 +19,19 @@
             <div class="usuarios-header">
                 <h2>Usuarios</h2>
                 <div class="usuarios-actions">
-                    <button class="btnCrearUsuario">Crear usuario</button>
+                    <button class="btn btn-verde btnCrearUsuario">+ Crear usuario</button>
                 </div>
             </div>
-            <ul id="listaUsuarios" style="list-style: none; text-align: left;"></ul>
+            <ul id="listaUsuarios" style="list-style:none;"></ul>
         </section>
 
         <!-- SECCIÓN CARGADORES -->
         <section id="seccionCargadores" style="display:none;">
+            <div class="cargadores-header">
+                <h2>Cargadores</h2>
+                <button class="btn btn-verde btnCrearCargador">+ Crear cargador</button>
+            </div>
             <div class="filtro-contenedor">
-                <div class="cargadores-header">
-                    <h2>Cargadores</h2>
-                    <button class="btnCrearCargador">Crear cargador</button>
-                </div>
-
                 <select id="filtroTipo">
                     <option value="">-- Todos los tipos --</option>
                     <option value="Rápido">Rápido</option>
@@ -45,20 +39,19 @@
                     <option value="Compatible">Compatible</option>
                 </select>
             </div>
-
             <div id="mapa"></div>
         </section>
 
         <!-- SECCIÓN INCIDENCIAS -->
-        <section id="seccionIncidencias" style="display:none; max-width: 900px; margin: 40px auto;">
+        <section id="seccionIncidencias" style="display:none;">
             <h2>Incidencias</h2>
-            <ul id="listaIncidencias" style="list-style: none; text-align: left;"></ul>
+            <ul id="listaIncidencias" style="list-style:none;"></ul>
         </section>
 
         <!-- SECCIÓN RESERVAS -->
-        <section id="seccionReservas" style="display:none; max-width: 900px; margin: 40px auto;">
+        <section id="seccionReservas" style="display:none;">
             <h2>Historial de Reservas</h2>
-            <ul id="listaReservas" style="list-style: none; text-align: left;"></ul>
+            <ul id="listaReservas" style="list-style:none;"></ul>
         </section>
     </main>
 
@@ -66,10 +59,9 @@
     <div id="modalDetalles">
         <div class="modal-content">
             <span id="cerrarModal">&times;</span>
-            <h2 style="color: #2c3e50;">Detalles del Cargador</h2>
+            <h2 style="color:#2c3e50;">Detalles del Cargador</h2>
             <hr>
-            <div id="modalContenido" style="margin: 20px 0; text-align: left;"></div>
-
+            <div id="modalContenido" style="margin:20px 0; text-align:left;"></div>
             <label for="estadoSelector"><strong>Nuevo estado:</strong></label>
             <select id="estadoSelector" style="width:100%; padding:8px; margin:10px 0;">
                 <option value="Libre">Libre</option>
@@ -77,38 +69,24 @@
                 <option value="En reparación">En reparación</option>
                 <option value="Operativo">Operativo</option>
             </select>
-
             <button id="btnCambiarEstado">Guardar estado</button>
-
-            <!-- Botón para activar/desactivar visibilidad del cargador -->
-            <button id="btnToggleActivoCargador" style="background-color: #e67e22; margin-top: 8px;">
+            <button id="btnToggleActivoCargador" style="background-color:#e67e22; margin-top:8px;">
                 Desactivar cargador
             </button>
         </div>
     </div>
 
-    <!-- BARRA INFERIOR -->
-    <nav id="adminBottomNav" style="position:fixed; bottom:0; left:0; width:100%; background:#2c3e50; display:flex; justify-content:space-around; padding:12px 0; z-index:999;">
-        <button class="navAdminBtn" data-seccion="usuarios" style="background:none; border:none; color:white; font-weight:bold;">Usuarios</button>
-        <button class="navAdminBtn" data-seccion="cargadores" style="background:none; border:none; color:white; font-weight:bold;">Cargadores</button>
-        <button class="navAdminBtn" data-seccion="incidencias" style="background:none; border:none; color:white; font-weight:bold;">Incidencias</button>
-        <button class="navAdminBtn" data-seccion="reservas" style="background:none; border:none; color:white; font-weight:bold;">Reservas</button>
+    <!-- BARRA INFERIOR DE NAVEGACIÓN -->
+    <nav id="adminBottomNav">
+        <button class="navAdminBtn" data-seccion="usuarios">👥 Usuarios</button>
+        <button class="navAdminBtn" data-seccion="cargadores">⚡ Cargadores</button>
+        <button class="navAdminBtn" data-seccion="incidencias">⚠ Incidencias</button>
+        <button class="navAdminBtn" data-seccion="reservas">📋 Reservas</button>
     </nav>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module" src="../js/admin.js"></script>
-
     <script>
-        const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
-
-        if (!usuario || usuario.rol !== "admin") {
-            window.location.href = "/html/index.html";
-        }
-
-        document.getElementById("logoutBtn").onclick = () => {
-            localStorage.removeItem("usuarioLogueado");
-            window.location.href = "/html/index.html";
-        };
     </script>
 </body>
 </html>
