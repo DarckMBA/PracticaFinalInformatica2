@@ -70,7 +70,6 @@
     <script type="module" src="../js/usuario.js"></script>
     <script>
         const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
-
         if (!usuario || usuario.rol !== "usuario") {
             window.location.href = "/html/index.html";
         }
