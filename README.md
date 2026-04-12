@@ -50,7 +50,18 @@ node server.js
 
 El servidor arrancará en `http://localhost:3000`
 
-### 3. Abrir la aplicación
+### 3. Contraseñas (primera vez)
+
+Si es la primera vez que se ejecuta el proyecto, hay que cifrar las contraseñas de los usuarios de prueba:
+
+```bash
+npm install bcrypt
+node backend/seguridad/middleware/migrate-passwords.js
+```
+
+Este paso solo es necesario una vez. Una vez ejecutado, las contraseñas quedan almacenadas cifradas en la base de datos y no debe repetirse.
+
+### 4. Abrir la aplicación
 
 Abrir el navegador en:
 ```
@@ -109,17 +120,29 @@ proyecto/
 
 ## Funcionalidades principales
 
+### Panel de Usuario
 - Geolocalización del usuario y visualización de cargadores en mapa interactivo
 - Filtrado de cargadores por tipo (Rápido, Estándar, Compatible)
-- Reserva de plaza con tiempo limitado según tipo de cargador (15/30/45 min)
-- Barra de carga en tiempo real con notificación al completarse
-- Historial de reservas por usuario
-- Panel de administrador: gestión de usuarios, cargadores, incidencias y reservas
-- Panel de técnico: actualización de estados y resolución de incidencias
-- Sistema de roles con redirección automática según perfil
+- Reserva de plaza con tiempo limitado según tipo de cargador (15 / 30 / 45 min)
+- Barra de carga en tiempo real con notificación del navegador al completarse
+- Historial de reservas desplegable con estado de cada reserva (Activa, Finalizada, Cancelada)
+- Cancelación de reservas activas
+- Reporte de incidencias en cargadores
 
+### Panel de Administrador
+- Gestión de usuarios: crear, activar/desactivar y cambiar rol
+- Gestión de cargadores: visualización en mapa, cambio de estado y activación/desactivación
+- Filtrado de cargadores por tipo en el mapa
+- Consulta de incidencias abiertas y resueltas
+- Historial completo de reservas de todos los usuarios
 
+### Panel de Técnico
+- Visualización de incidencias pendientes con enlace a Google Maps
+- Resolución de incidencias con comentario técnico
+- Visualización de incidencias ya resueltas
 
-
-npm install bcrypt
-node backend/seguridad/middleware/migrate-passwords.js
+### Sistema general
+- Sistema de autenticación con roles (usuario, administrador, técnico)
+- Redirección automática al panel correspondiente según el rol
+- Contraseñas cifradas con bcrypt
+- Refresco automático de datos cada 60 segundos

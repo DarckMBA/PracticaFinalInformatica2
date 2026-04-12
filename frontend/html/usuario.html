@@ -35,9 +35,20 @@
             <div id="mapa"></div>
         </section>
 
-        <section id="historial" style="max-width: 800px; margin: 40px auto;">
-            <h2>Mi Historial de Reservas</h2>
-            <ul id="listaHistorial" style="list-style: none; text-align: left;"></ul>
+        <section id="historial">
+            <div class="historial-header" id="historialHeader" role="button"
+                aria-expanded="false" aria-controls="historialBody" tabindex="0">
+                <h2>Mi Historial de Reservas</h2>
+                <button class="historial-toggle-btn" id="historialToggleBtn"
+                        tabindex="-1" aria-hidden="true">
+                    Ver reservas <i class="historial-arrow" id="historialArrow">▼</i>
+                </button>
+            </div>
+
+            <div class="historial-body" id="historialBody">
+                <hr class="historial-divider">
+                <ul id="listaHistorial" style="list-style: none;"></ul>
+            </div>
         </section>
     </main>
 
@@ -69,6 +80,26 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module" src="../js/usuario.js"></script>
     <script>
+        (function () {
+            const header = document.getElementById('historialHeader');
+            const body   = document.getElementById('historialBody');
+            const btn    = document.getElementById('historialToggleBtn');
+
+            function toggle() {
+                const isOpen = body.classList.toggle('open');
+                header.setAttribute('aria-expanded', isOpen);
+                btn.innerHTML =
+                    (isOpen ? 'Ocultar reservas' : 'Ver reservas') +
+                    ' <i class="historial-arrow' + (isOpen ? ' open' : '') +
+                    '" id="historialArrow">▼</i>';
+            }
+
+            header.addEventListener('click', toggle);
+            header.addEventListener('keydown', function (e) {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+            });
+        })();
+
         const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
         if (!usuario || usuario.rol !== "usuario") {
             window.location.href = "/html/index.html";

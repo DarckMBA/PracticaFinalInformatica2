@@ -66,11 +66,16 @@ function renderPaginacion(contenedorId, total, pagina, callback) {
 
     el.innerHTML = `
         <div class="paginacion">
-            <button ${pagina === 1 ? "disabled" : ""} onclick="${callback}(${pagina - 1})">‹ Anterior</button>
+            <button ${pagina === 1 ? "disabled" : ""} id="${contenedorId}-prev">‹ Anterior</button>
             <span>Página ${pagina} de ${totalPaginas}</span>
-            <button ${pagina === totalPaginas ? "disabled" : ""} onclick="${callback}(${pagina + 1})">Siguiente ›</button>
+            <button ${pagina === totalPaginas ? "disabled" : ""} id="${contenedorId}-next">Siguiente ›</button>
         </div>
     `;
+
+    const prev = document.getElementById(`${contenedorId}-prev`);
+    const next = document.getElementById(`${contenedorId}-next`);
+    if (prev) prev.addEventListener("click", () => window[callback](pagina - 1));
+    if (next) next.addEventListener("click", () => window[callback](pagina + 1));
 }
 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
@@ -136,6 +141,9 @@ function renderPendientes(incidencias, pagina) {
         <div id="pagPendientes"></div>
     `;
 
+    const pagDiv = document.createElement("div");
+    pagDiv.id = "pagPendientes";
+    lista.appendChild(pagDiv);
     renderPaginacion("pagPendientes", incidencias.length, pagina, "cambiarPaginaPendientes");
 }
 
@@ -188,6 +196,9 @@ function renderResueltas(incidencias, pagina) {
         <div id="pagResueltas"></div>
     `;
 
+    const pagDiv = document.createElement("div");
+    pagDiv.id = "pagResueltas";
+    lista.appendChild(pagDiv);
     renderPaginacion("pagResueltas", incidencias.length, pagina, "cambiarPaginaResueltas");
 }
 

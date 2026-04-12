@@ -119,16 +119,22 @@ function paginar(datos, pagina) {
 
 function renderPaginacion(contenedorId, total, paginaActual, onCambio) {
     const totalPaginas = Math.ceil(total / state.FILAS_POR_PAGINA);
-    if (totalPaginas <= 1) { document.getElementById(contenedorId).innerHTML = ""; return; }
-
     const contenedor = document.getElementById(contenedorId);
+    if (!contenedor) return;
+    if (totalPaginas <= 1) { contenedor.innerHTML = ""; return; }
+
     contenedor.innerHTML = `
         <div class="paginacion">
-            <button ${paginaActual === 1 ? "disabled" : ""} onclick="(${onCambio})(${paginaActual - 1})">‹ Anterior</button>
+            <button ${paginaActual === 1 ? "disabled" : ""} id="${contenedorId}-prev">‹ Anterior</button>
             <span>Página ${paginaActual} de ${totalPaginas}</span>
-            <button ${paginaActual === totalPaginas ? "disabled" : ""} onclick="(${onCambio})(${paginaActual + 1})">Siguiente ›</button>
+            <button ${paginaActual === totalPaginas ? "disabled" : ""} id="${contenedorId}-next">Siguiente ›</button>
         </div>
     `;
+
+    const prev = document.getElementById(`${contenedorId}-prev`);
+    const next = document.getElementById(`${contenedorId}-next`);
+    if (prev) prev.addEventListener("click", () => onCambio(paginaActual - 1));
+    if (next) next.addEventListener("click", () => onCambio(paginaActual + 1));
 }
 
 // ─── RENDER USUARIOS ──────────────────────────────────────────────────────────
@@ -180,7 +186,7 @@ function renderTablaUsuarios(usuarios, pagina) {
     `;
 
     renderPaginacion("paginacionUsuarios", usuarios.length, pagina,
-        `(p) => { window._usuariosCache = window._usuariosCache || []; renderTablaUsuarios(window._usuariosCache, p); }`
+        (p) => renderTablaUsuarios(window._usuariosCache || [], p)
     );
 
     // Guardar caché para paginación
@@ -240,7 +246,7 @@ function renderTablaReservas(reservas, pagina) {
     `;
 
     renderPaginacion("paginacionReservas", reservas.length, pagina,
-        `(p) => { renderTablaReservas(window._reservasCache || [], p); }`
+        (p) => renderTablaReservas(window._reservasCache || [], p)
     );
 
     window._reservasCache = reservas;
@@ -294,7 +300,7 @@ function renderTablaIncidencias(incidencias, pagina) {
     `;
 
     renderPaginacion("paginacionIncidencias", incidencias.length, pagina,
-        `(p) => { renderTablaIncidencias(window._incidenciasCache || [], p); }`
+        (p) => renderTablaIncidencias(window._incidenciasCache || [], p)
     );
 
     window._incidenciasCache = incidencias;
