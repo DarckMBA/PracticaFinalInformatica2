@@ -34,8 +34,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const usuario = JSON.parse(localStorage.getItem("usuarioLogueado"));
         const cargador = cargadores.find(c => c.id === cargadorSeleccionadoId);
 
-        if (!usuario) { alert("Debes iniciar sesión."); return; }
-        if (!cargador || cargador.estado !== "Libre") { alert("No disponible."); return; }
+        if (!usuario) { toast("Debes iniciar sesión.", "error"); return; }
+        if (!cargador || cargador.estado !== "Libre") { toast("No disponible.", "error"); return; }
 
         try {
             const respuesta = await fetch("http://localhost:3000/reservas", {
@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const data = await respuesta.json();
-            if (!respuesta.ok) { alert(data.error); return; }
+            if (!respuesta.ok) { toast(data.error, "error"); return; }
 
             // Guardamos la batería inicial aleatoria (10–40%) vinculada a la reserva
             const bateriaInicial = Math.floor(Math.random() * 31) + 10;
@@ -58,9 +58,9 @@ document.addEventListener('DOMContentLoaded', () => {
             pintarCargadores(cargadores);
             actualizarHistorialUI();
             document.getElementById("modalDetalles").style.display = "none";
-            alert("Reserva guardada correctamente.");
+            toast("Reserva guardada correctamente.");
         } catch {
-            alert("No se pudo conectar con el servidor.");
+            toast("No se pudo conectar con el servidor.", "error");
         }
     };
 
@@ -76,8 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const idCargador = document.getElementById("incidenciaCargador").value;
             const descripcion = document.getElementById("incidenciaDescripcion").value.trim();
 
-            if (!usuario) { alert("Debes iniciar sesión."); return; }
-            if (!idCargador || descripcion === "") { alert("Completa todos los campos."); return; }
+            if (!usuario) { toast("Debes iniciar sesión.", "error"); return; }
+            if (!idCargador || descripcion === "") { toast("Completa todos los campos.", "error"); return; }
 
             try {
                 const res = await fetch("http://localhost:3000/incidencias", {
@@ -91,13 +91,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 const data = await res.json();
-                if (!res.ok) { alert(data.error); return; }
+                if (!res.ok) { toast(data.error, "error"); return; }
 
-                alert("Incidencia enviada correctamente.");
+                toast("Incidencia enviada correctamente.");
                 document.getElementById("incidenciaCargador").value = "";
                 document.getElementById("incidenciaDescripcion").value = "";
             } catch {
-                alert("No se pudo enviar la incidencia.");
+                toast("No se pudo enviar la incidencia.", "error");
             }
         };
     }
@@ -181,16 +181,16 @@ window.cancelarReserva = async function (idCargador) {
         const res = await fetch(`http://localhost:3000/reservas/${idCargador}`, { method: "DELETE" });
         const data = await res.json();
 
-        if (!res.ok) { alert(data.error || "Error al cancelar"); return; }
+        if (!res.ok) { toast(data.error || "Error al cancelar", "error"); return; }
 
         const cargador = cargadores.find(c => c.id === idCargador);
         if (cargador) cargador.estado = "Libre";
 
         pintarCargadores(cargadores);
         actualizarHistorialUI();
-        alert("Reserva cancelada correctamente.");
+        toast("Reserva cancelada correctamente.");
     } catch {
-        alert("Error al cancelar la reserva.");
+        toast("Error al cancelar la reserva.", "error");
     }
 };
 
@@ -311,7 +311,7 @@ function notificarCargaCompleta(reserva) {
         });
     } else {
         // Fallback si el usuario denegó los permisos
-        alert(`${titulo}\n${mensaje}`);
+        toast(`${titulo}\n${mensaje}`, "error");
     }
 }
 
@@ -347,4 +347,19 @@ function arrancarTickerBateria(historial) {
             }
         });
     }, 1000);
+}
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+
+function toast(mensaje, tipo = "ok", duracion = 3000) {
+    let el = document.getElementById("toast");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "toast";
+        document.body.appendChild(el);
+    }
+    el.textContent = mensaje;
+    el.className = `show toast-${tipo}`;
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => { el.className = ""; }, duracion);
 }

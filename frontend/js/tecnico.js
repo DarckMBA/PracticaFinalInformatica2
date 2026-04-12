@@ -1,13 +1,3 @@
-/**
- * tecnico.js — Panel de Técnico
- * Mejoras:
- *  - NO se muestra el mapa por defecto.
- *  - Dos tablas: Incidencias pendientes y resueltas.
- *  - Cada incidencia tiene un botón "Ver en mapa" que abre Google Maps.
- *  - Paginación en ambas tablas.
- *  - Separación entre capa API y capa UI.
- */
-
 // ─── ESTADO ───────────────────────────────────────────────────────────────────
 
 const state = {
@@ -218,18 +208,18 @@ window.resolverIncidencia = async function(idIncidencia) {
     const comentario = input ? input.value.trim() : "";
 
     if (!comentario) {
-        alert("Escribe un comentario técnico antes de resolver la incidencia.");
+        toast("Escribe un comentario técnico antes de resolver la incidencia.", "error");
         input && input.focus();
         return;
     }
 
     try {
         const data = await API.resolverIncidencia(idIncidencia, comentario);
-        if (data.error) { alert(data.error); return; }
-        alert("✅ Incidencia resuelta correctamente.");
+        if (data.error) { toast(data.error, "error"); return; }
+        toast("✅ Incidencia resuelta correctamente.");
         await cargarIncidencias(); // Recargar ambas tablas
     } catch {
-        alert("Error de conexión al resolver la incidencia.");
+        toast("Error de conexión al resolver la incidencia.", "error");
     }
 };
 
@@ -263,3 +253,19 @@ async function cargarIncidencias() {
 document.addEventListener("DOMContentLoaded", () => {
     cargarIncidencias();
 });
+
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+
+function toast(mensaje, tipo = "ok", duracion = 3000) {
+    let el = document.getElementById("toast");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "toast";
+        document.body.appendChild(el);
+    }
+    el.textContent = mensaje;
+    el.className = `show toast-${tipo}`;
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => { el.className = ""; }, duracion);
+}

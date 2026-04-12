@@ -1,13 +1,4 @@
-/**
- * admin.js — Panel de Administrador
- * Mejoras:
- *  - Paginación en tablas (10 filas/página)
- *  - Tiempo relativo en reservas ("hace 2 días", "En proceso")
- *  - Separación clara entre lógica de datos (API) y lógica de UI (render)
- *  - Sin lógica de negocio en la capa de vista
- */
-
-import { initMap, pintarCargadores } from './mapa.js';
+import { initMap, pintarCargadores, getMap } from './mapa.js';
 
 // ─── ESTADO GLOBAL ────────────────────────────────────────────────────────────
 
@@ -331,7 +322,7 @@ async function cargarCargadoresAdmin() {
             pintarCargadores(state.cargadores);
         }
     } catch {
-        alert("Error al cargar cargadores.");
+        toast("Error al cargar cargadores.");
     }
 }
 
@@ -377,8 +368,8 @@ window.abrirDialogoEditar = function(idUsuario) {
             password: overlay.querySelector("#dPassword").value
         };
         const res = await API.actualizarUsuario(u.id_usuario, datos);
-        if (res.error) { alert(res.error); return; }
-        alert("Usuario actualizado correctamente.");
+        if (res.error) { toast(res.error, "error"); return; }
+        toast("Usuario actualizado correctamente.");
         overlay.remove();
         cargarUsuarios();
     };
@@ -401,7 +392,7 @@ window.confirmarBaja = function(idUsuario) {
     overlay.querySelector("#dCancelar").onclick = () => overlay.remove();
     overlay.querySelector("#dConfirmar").onclick = async () => {
         const res = await API.darDeBajaUsuario(idUsuario);
-        if (res.error) { alert(res.error); return; }
+        if (res.error) { toast(res.error, "error"); return; }
         overlay.remove();
         cargarUsuarios();
     };
@@ -409,7 +400,7 @@ window.confirmarBaja = function(idUsuario) {
 
 window.reactivarUsuario = async function(idUsuario) {
     const res = await API.reactivarUsuario(idUsuario);
-    if (res.error) { alert(res.error); return; }
+    if (res.error) { toast(res.error, "error"); return; }
     cargarUsuarios();
 };
 
@@ -458,10 +449,25 @@ function mostrarSeccion(nombre) {
 // ─── CREAR CARGADOR ───────────────────────────────────────────────────────────
 
 function abrirDialogoCrearCargador() {
+    let latSeleccionada = null;
+    let lngSeleccionada = null;
+    let marcadorTemporal = null;
+
     const overlay = document.createElement("div");
     overlay.className = "admin-dialog-overlay";
+    overlay.style.alignItems = "flex-end";
+    overlay.style.background = "transparent";
+    overlay.style.pointerEvents = "none";
     overlay.innerHTML = `
-        <div class="admin-dialog">
+        <div class="admin-dialog" style="
+            position: fixed;
+            bottom: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: min(92vw, 380px);
+            pointer-events: all;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+        ">
             <h3 class="admin-dialog-title">Nuevo cargador</h3>
             <div class="form-group"><label>Tipo</label>
                 <select id="cTipo" class="admin-dialog-select">
@@ -470,27 +476,73 @@ function abrirDialogoCrearCargador() {
                     <option value="Compatible">Compatible</option>
                 </select>
             </div>
-            <div class="form-group"><label>Latitud</label><input id="cLat" type="number" step="0.0001" placeholder="40.4168"></div>
-            <div class="form-group"><label>Longitud</label><input id="cLng" type="number" step="0.0001" placeholder="-3.7038"></div>
+            <div class="form-group">
+                <label>Ubicación</label>
+                <div id="cUbicacionInfo" style="
+                    padding: 10px 14px;
+                    border-radius: 8px;
+                    border: 2px dashed #0078d4;
+                    color: #0078d4;
+                    font-size: 0.88rem;
+                    text-align: center;
+                    background: #f0f7ff;
+                    margin-top: 4px;
+                ">📍 Haz clic en el mapa para seleccionar la ubicación</div>
+            </div>
             <div class="admin-dialog-actions">
-                <button class="btn btn-verde admin-dialog-btn" id="cGuardar">Crear</button>
+                <button class="btn btn-verde admin-dialog-btn" id="cGuardar"
+                    disabled style="opacity:0.5; cursor:not-allowed;">Crear</button>
                 <button class="btn admin-dialog-btn admin-dialog-btn-cancel" id="cCancelar">Cancelar</button>
             </div>
         </div>
     `;
     document.body.appendChild(overlay);
-    overlay.querySelector("#cCancelar").onclick = () => overlay.remove();
+
+    const mapaLeaflet = getMap();
+
+    function onMapClick(e) {
+        latSeleccionada = e.latlng.lat.toFixed(6);
+        lngSeleccionada = e.latlng.lng.toFixed(6);
+
+        if (marcadorTemporal) marcadorTemporal.remove();
+        marcadorTemporal = L.marker([latSeleccionada, lngSeleccionada])
+            .addTo(mapaLeaflet)
+            .bindPopup("📍 Nuevo cargador aquí")
+            .openPopup();
+
+        const info = overlay.querySelector("#cUbicacionInfo");
+        info.innerHTML = `✅ Ubicación seleccionada<br><small style="color:#555">${latSeleccionada}, ${lngSeleccionada}</small>`;
+        info.style.borderColor = "#107c10";
+        info.style.color = "#107c10";
+        info.style.background = "#f0fff4";
+
+        const btnGuardar = overlay.querySelector("#cGuardar");
+        btnGuardar.disabled = false;
+        btnGuardar.style.opacity = "1";
+        btnGuardar.style.cursor = "pointer";
+    }
+
+    mapaLeaflet.on("click", onMapClick);
+
+    overlay.querySelector("#cCancelar").onclick = () => {
+        mapaLeaflet.off("click", onMapClick);
+        if (marcadorTemporal) marcadorTemporal.remove();
+        overlay.remove();
+    };
+
     overlay.querySelector("#cGuardar").onclick = async () => {
+        if (!latSeleccionada || !lngSeleccionada) return;
         const datos = {
             tipo:     overlay.querySelector("#cTipo").value,
-            latitud:  overlay.querySelector("#cLat").value,
-            longitud: overlay.querySelector("#cLng").value,
+            latitud:  latSeleccionada,
+            longitud: lngSeleccionada,
             estado:   "Libre"
         };
-        if (!datos.latitud || !datos.longitud) { alert("Introduce latitud y longitud."); return; }
         const res = await API.crearCargador(datos);
-        if (res.error) { alert(res.error); return; }
-        alert("Cargador creado correctamente.");
+        mapaLeaflet.off("click", onMapClick);
+        if (marcadorTemporal) marcadorTemporal.remove();
+        if (res.error) { toast(res.error, "error"); return; }
+        toast("Cargador creado correctamente.");
         overlay.remove();
         cargarCargadoresAdmin();
     };
@@ -539,10 +591,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 password: overlay.querySelector("#uPassword").value,
                 rol:      overlay.querySelector("#uRol").value
             };
-            if (!datos.nombre || !datos.email || !datos.password) { alert("Rellena todos los campos."); return; }
+            if (!datos.nombre || !datos.email || !datos.password) { toast("Rellena todos los campos.", "error"); return; }
             const res = await API.crearUsuario(datos);
-            if (res.error) { alert(res.error); return; }
-            alert("Usuario creado correctamente.");
+            if (res.error) { toast(res.error, "error"); return; }
+            toast("Usuario creado correctamente.");
             overlay.remove();
             cargarUsuarios();
         };
@@ -559,17 +611,17 @@ document.addEventListener("DOMContentLoaded", () => {
     // Modal cargador — guardar estado
     document.getElementById("btnCambiarEstado").onclick = async () => {
         const nuevoEstado = document.getElementById("estadoSelector").value;
-        if (!state.cargadorSeleccionadoId) { alert("Selecciona un cargador."); return; }
+        if (!state.cargadorSeleccionadoId) { toast("Selecciona un cargador.", "error"); return; }
 
         const res = await API.cambiarEstadoCargador(state.cargadorSeleccionadoId, nuevoEstado);
-        if (res.error) { alert(res.error); return; }
+        if (res.error) { toast(res.error, "error"); return; }
 
         const c = state.cargadores.find(x => x.id === state.cargadorSeleccionadoId);
         if (c) c.estado = nuevoEstado === "Operativo" ? "Libre" : nuevoEstado;
 
         pintarCargadores(state.cargadores);
         seleccionarCargador(state.cargadorSeleccionadoId);
-        alert("Estado actualizado correctamente.");
+        toast("Estado actualizado correctamente.");
     };
 
     // Modal cargador — toggle activo
@@ -581,11 +633,11 @@ document.addEventListener("DOMContentLoaded", () => {
             ? await API.desactivarCargador(c.id)
             : await API.reactivarCargador(c.id);
 
-        if (res.error) { alert(res.error); return; }
+        if (res.error) { toast(res.error, "error"); return; }
         c.activo = !c.activo;
         seleccionarCargador(c.id);
         pintarCargadores(state.cargadores);
-        alert(`Cargador ${c.activo ? "reactivado" : "desactivado"} correctamente.`);
+        toast(`Cargador ${c.activo ? "reactivado" : "desactivado"} correctamente.`);
     };
 
     // Filtro cargadores
@@ -598,3 +650,18 @@ document.addEventListener("DOMContentLoaded", () => {
     // Exponer selección de cargador al popup del mapa
     window.seleccionarCargador = seleccionarCargador;
 });
+
+// ─── TOAST ────────────────────────────────────────────────────────────────────
+
+function toast(mensaje, tipo = "ok", duracion = 3000) {
+    let el = document.getElementById("toast");
+    if (!el) {
+        el = document.createElement("div");
+        el.id = "toast";
+        document.body.appendChild(el);
+    }
+    el.textContent = mensaje;
+    el.className = `show toast-${tipo}`;
+    clearTimeout(el._timer);
+    el._timer = setTimeout(() => { el.className = ""; }, duracion);
+}
